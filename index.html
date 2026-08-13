@@ -32,7 +32,13 @@
 
 <!-- ══ NAV ═══════════════════════════════════════════════════════════ -->
 <nav class="nav" aria-label="Main">
-  <a class="nav__brand" href="#hero"><img src="assets/logo.png" alt="Studie'o7 home" width="440" height="108"></a>
+  <div class="nav__brandwrap">
+    <a class="nav__brand" href="#hero"><img src="assets/logo.png" alt="Studie'o7 home" width="440" height="108"></a>
+    <span class="nav__location" aria-label="Location: Hopes, Coimbatore">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.4"/></svg>
+      <span class="nav__location-text">Hopes, Coimbatore</span>
+    </span>
+  </div>
 
   <button class="nav__toggle" type="button" aria-expanded="false" aria-controls="nav-menu" aria-label="Open menu">
     <span class="nav__bar"></span><span class="nav__bar"></span><span class="nav__bar"></span>
