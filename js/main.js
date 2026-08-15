@@ -378,11 +378,20 @@
       };
 
       var button = $('button[type="submit"]', form);
+      var label  = button.textContent;
       button.disabled = true;
+      button.classList.add('btn--sending');
+      button.textContent = 'Sending';
       errorEl.textContent = '';
 
-      Promise.resolve(sendBooking(data)).then(function (res) {
+      function restore() {
         button.disabled = false;
+        button.classList.remove('btn--sending');
+        button.textContent = label;
+      }
+
+      Promise.resolve(sendBooking(data)).then(function (res) {
+        restore();
         if (!res || !res.ok) {
           fail('That didn\u2019t go through. Please call us on +91 98765 43210 instead.');
           return;
@@ -392,9 +401,13 @@
         form.hidden = true;
         card.hidden = false;
         card.setAttribute('tabindex', '-1');
+        // Reflow between unhide and class add, so the keyframes restart every
+        // time rather than only on the first booking of the session.
+        void card.offsetWidth;
+        card.classList.add('is-in');
         card.focus();
       }).catch(function () {
-        button.disabled = false;
+        restore();
         fail('That didn\u2019t go through. Please call us on +91 98765 43210 instead.');
       });
     });
@@ -402,6 +415,7 @@
     if (again) {
       again.addEventListener('click', function () {
         card.hidden = true;
+        card.classList.remove('is-in');
         form.hidden = false;
         errorEl.textContent = '';
         form.reset();
