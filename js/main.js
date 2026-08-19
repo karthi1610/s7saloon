@@ -292,35 +292,51 @@
     wrap._reset = function () { selected = []; closePanel(); renderPanel(); };
   })();
 
-  /* ── Booking form ──────────────────────────────────────────────────
-     ⚠ STUB — the form is not wired to anything yet. It validates,
-     shows the success state, and logs the payload. Pick a destination
-     and replace the body of sendBooking() below:
+  /* ══ BOOKING API ═══════════════════════════════════════════════════
+     The form POSTs a JSON booking to BOOKING_API_URL on submit.
 
-       A) WhatsApp — no backend, opens a prefilled chat:
-          var msg = 'Booking request%0A' +
-                    'Name: ' + data.name + '%0A' +
-                    'Phone: ' + data.phone + '%0A' +
-                    'For: ' + data.bookingFor + '%0A' +
-                    'Services: ' + data.services + '%0A' +
-                    'When: ' + data.date + ' ' + data.time + '%0A' +
-                    'Notes: ' + data.notes;
-          window.open('https://wa.me/919876543210?text=' + msg, '_blank');
-          return { ok: true };
+     ┌─ SET THIS ────────────────────────────────────────────────────┐
+     │  BOOKING_API_URL — the endpoint that receives the booking.    │
+     │  Must be https. Leave '' to keep the form in dry-run mode     │
+     │  (validates + animates, logs the payload, sends nothing).     │
+     └───────────────────────────────────────────────────────────────┘
 
-       B) Email via a form service (Formspree, Web3Forms, Netlify Forms):
-          var res = await fetch('https://formspree.io/f/XXXXXXX', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-            body: JSON.stringify(data)
-          });
-          return { ok: res.ok };
+     ⚠ DO NOT put an API key in this file. Everything here is public —
+     "view source" on any phone shows it. If the receiving endpoint
+     needs a secret, it must sit behind your own relay (a Cloudflare
+     Worker) that holds the key server-side and forwards the call.
 
-       C) Your own endpoint — same shape as B, pointed at your API.
+     The endpoint must also send CORS headers, or the browser will
+     block the request before it leaves the page:
+       Access-Control-Allow-Origin: https://studieo7.com
+       Access-Control-Allow-Methods: POST, OPTIONS
+       Access-Control-Allow-Headers: Content-Type
+     and answer the OPTIONS preflight with 204.
 
-     Whichever you pick, note that phone numbers are personal data:
-     use HTTPS, and don't log the payload in production.
-     ───────────────────────────────────────────────────────────────── */
+     Payload shape sent on every submission — this is the contract to
+     hand the billing vendor:
+
+       {
+         "requestId":   "uuid",              // idempotency key, unique per submit
+         "source":      "website",
+         "submittedAt": "2026-08-18T09:14:00.000Z",   // ISO 8601, UTC
+         "customer": {
+           "name":  "Ravi Kumar",
+           "phone": "+919876543210"          // E.164, normalised
+         },
+         "booking": {
+           "segment":     "women",           // women | men | kids
+           "services":    ["Cut & Styling", "Facial"],   // array, not a string
+           "preferredAt": "2026-08-20T10:30:00+05:30",   // null if not given
+           "preferredDate": "2026-08-20",    // raw fallback, null if not given
+           "preferredTime": "10:30",         // raw fallback, null if not given
+           "notes":       "First visit"      // "" when blank
+         }
+       }
+
+     Expected response: any 2xx = accepted. Anything else, or a network
+     failure/timeout, shows the customer the "please call us" message.
+     ═════════════════════════════════════════════════════════════════ */
   (function () {
     var form     = $('#booking-form');
     var card     = $('#booked');
@@ -330,9 +346,91 @@
     var again    = $('#book-again');
     if (!form || !card) return;
 
+    var BOOKING_API_URL = '';   // ← your endpoint goes here
+    var BOOKING_TIMEOUT = 12000; // ms before we give up and tell the customer
+
+    // 10 local digits -> +91XXXXXXXXXX. Already-prefixed numbers pass through.
+    function toE164(raw) {
+      var d = String(raw).replace(/[^0-9]/g, '');
+      if (d.length === 10) return '+91' + d;
+      if (d.length === 12 && d.indexOf('91') === 0) return '+' + d;
+      if (d.length === 11 && d.charAt(0) === '0') return '+91' + d.slice(1);
+      return '+' + d;
+    }
+
+    // date + time -> ISO with the salon's real offset. IST is fixed at +05:30,
+    // so this is safe to hardcode; don't reuse it for other timezones.
+    function toIso(date, time) {
+      if (!date) return null;
+      return date + 'T' + (time || '00:00') + ':00+05:30';
+    }
+
+    function newId() {
+      if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+      return 'bk-' + Date.now() + '-' + Math.random().toString(16).slice(2, 10);
+    }
+
+    function buildPayload(data) {
+      return {
+        requestId:   newId(),
+        source:      'website',
+        submittedAt: new Date().toISOString(),
+        customer: {
+          name:  data.name,
+          phone: toE164(data.phone)
+        },
+        booking: {
+          segment:       (data.bookingFor || '').toLowerCase(),
+          services:      data.services ? data.services.split(', ') : [],
+          preferredAt:   toIso(data.date, data.time),
+          preferredDate: data.date || null,
+          preferredTime: data.time || null,
+          notes:         data.notes || ''
+        }
+      };
+    }
+
     function sendBooking(data) {
-      console.log('[booking] not wired to a backend yet — payload:', data);
-      return Promise.resolve({ ok: true });
+      var payload = buildPayload(data);
+
+      if (!BOOKING_API_URL) {
+        console.log('[booking] dry run — set BOOKING_API_URL to send. Payload:', payload);
+        return Promise.resolve({ ok: true, dryRun: true });
+      }
+
+      // AbortController so a hanging endpoint doesn't leave the customer
+      // staring at a "Sending" button forever.
+      var ctrl = window.AbortController ? new AbortController() : null;
+      var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, BOOKING_TIMEOUT) : null;
+
+      return fetch(BOOKING_API_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body:    JSON.stringify(payload),
+        signal:  ctrl ? ctrl.signal : undefined
+      }).then(function (res) {
+        if (timer) clearTimeout(timer);
+        // Deliberately not logging the payload here — it holds a phone number.
+        if (!res.ok) console.error('[booking] endpoint returned', res.status);
+        return { ok: res.ok, status: res.status };
+      }).catch(function (err) {
+        if (timer) clearTimeout(timer);
+        console.error('[booking] request failed:', err && err.name);
+        return { ok: false, status: 0 };
+      });
+    }
+
+    function showSuccess(data) {
+      nameOut.textContent = data.name.split(' ')[0];
+      servOut.textContent = data.services;
+      form.hidden = true;
+      card.hidden = false;
+      card.setAttribute('tabindex', '-1');
+      // Reflow between unhide and class add, so the keyframes restart every
+      // time rather than only on the first booking of the session.
+      void card.offsetWidth;
+      card.classList.add('is-in');
+      card.focus();
     }
 
     function fail(message, field) {
@@ -359,6 +457,11 @@
         fail('That phone number looks incomplete — please check it.', phoneEl);
         return;
       }
+
+      // Honeypot: a real person never sees this field, so a value means a bot.
+      // Show the normal success state so the bot learns nothing, but send nothing.
+      var trap = $('#f-company');
+      if (trap && trap.value) { showSuccess({ name: name, services: '' }); return; }
 
       var bookingFor = ($('input[name="bookingFor"]:checked', form) || {}).value || '';
       var services   = $('#f-services-value').value;
@@ -393,22 +496,13 @@
       Promise.resolve(sendBooking(data)).then(function (res) {
         restore();
         if (!res || !res.ok) {
-          fail('That didn\u2019t go through. Please call us on +91 98765 43210 instead.');
+          fail('That didn\u2019t go through. Please call us on +91 72001 05777 instead.');
           return;
         }
-        nameOut.textContent = data.name.split(' ')[0];
-        servOut.textContent = data.services;
-        form.hidden = true;
-        card.hidden = false;
-        card.setAttribute('tabindex', '-1');
-        // Reflow between unhide and class add, so the keyframes restart every
-        // time rather than only on the first booking of the session.
-        void card.offsetWidth;
-        card.classList.add('is-in');
-        card.focus();
+        showSuccess(data);
       }).catch(function () {
         restore();
-        fail('That didn\u2019t go through. Please call us on +91 98765 43210 instead.');
+        fail('That didn\u2019t go through. Please call us on +91 72001 05777 instead.');
       });
     });
 
@@ -428,6 +522,152 @@
     }
   })();
 
+  /* ── Gallery lightbox ──────────────────────────────────────────────
+     Grid tiles become buttons; clicking opens a full-screen viewer with
+     prev/next, keyboard nav, swipe, and a focus trap. The dialog markup
+     lives at the bottom of the document so it isn't trapped inside any
+     transformed ancestor.
+     ───────────────────────────────────────────────────────────────── */
+  (function () {
+    var lb = $('#lightbox');
+    if (!lb) return;
+
+    var lbImg   = $('#lb-img');
+    var lbCount = $('#lb-count');
+    var btnPrev = $('#lb-prev');
+    var btnNext = $('#lb-next');
+    var btnClose = $('#lb-close');
+
+    // Only tiles that actually have a photo. A slot flagged .is-empty is
+    // showing the branded placeholder, so there's nothing to enlarge.
+    var slots = $$('.gallery__grid .img-slot').filter(function (slot) {
+      var img = $('img', slot);
+      return img && !slot.classList.contains('is-empty');
+    });
+    if (!slots.length) return;
+
+    var shots = slots.map(function (slot) {
+      var img = $('img', slot);
+      return {
+        src: img.currentSrc || img.src,
+        alt: img.getAttribute('alt') || '',
+        label: slot.getAttribute('data-label') || ''
+      };
+    });
+
+    var current = 0;
+    var lastFocused = null;
+    var scrollY = 0;
+
+    slots.forEach(function (slot, i) {
+      slot.setAttribute('role', 'button');
+      slot.setAttribute('tabindex', '0');
+      slot.setAttribute('aria-label', 'View ' + (shots[i].label || shots[i].alt || 'photo') + ' larger');
+      slot.addEventListener('click', function () { open(i); });
+      slot.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+          e.preventDefault();
+          open(i);
+        }
+      });
+    });
+
+    function render(i) {
+      var shot = shots[i];
+      lbImg.classList.remove('is-ready');
+      // Swap src only once the new file has decoded, so we never flash the
+      // previous photo stretched into the new one's aspect ratio.
+      var pre = new Image();
+      pre.onload = pre.onerror = function () {
+        lbImg.src = shot.src;
+        lbImg.alt = shot.alt;
+        lbImg.classList.add('is-ready');
+      };
+      pre.src = shot.src;
+
+      lbCount.textContent = (i + 1) + ' / ' + shots.length;
+      current = i;
+    }
+
+    function go(step) {
+      // Wrap around — a gallery shouldn't dead-end on the last photo.
+      render((current + step + shots.length) % shots.length);
+    }
+
+    function open(i) {
+      // Return focus to the tile that was opened, not whatever happened to
+      // be focused — a mouse click on a div doesn't always move focus.
+      lastFocused = slots[i];
+      scrollY = window.scrollY;
+      render(i);
+      lb.hidden = false;
+      // Reflow so the opacity transition actually runs on first open.
+      void lb.offsetWidth;
+      lb.classList.add('is-open');
+      document.body.style.position = 'fixed';
+      document.body.style.top = '-' + scrollY + 'px';
+      document.body.style.width = '100%';
+      btnClose.focus();
+    }
+
+    function close() {
+      lb.classList.remove('is-open');
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      window.scrollTo(0, scrollY);
+      var done = function () {
+        lb.hidden = true;
+        lbImg.removeAttribute('src');
+        lb.removeEventListener('transitionend', done);
+      };
+      if (reduceMotion) done();
+      else lb.addEventListener('transitionend', done);
+      if (lastFocused) lastFocused.focus();
+    }
+
+    btnPrev.addEventListener('click', function () { go(-1); });
+    btnNext.addEventListener('click', function () { go(1); });
+    btnClose.addEventListener('click', close);
+
+    // Click the backdrop (but not the photo or a control) to dismiss.
+    lb.addEventListener('click', function (e) {
+      if (e.target === lb || e.target.classList.contains('lb__fig')) close();
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (lb.hidden) return;
+      if (e.key === 'Escape') { close(); return; }
+      if (e.key === 'ArrowLeft') { go(-1); return; }
+      if (e.key === 'ArrowRight') { go(1); return; }
+      if (e.key === 'Tab') {
+        // Focus trap: three controls, cycled manually.
+        var order = [btnClose, btnPrev, btnNext];
+        var idx = order.indexOf(document.activeElement);
+        e.preventDefault();
+        var next = e.shiftKey ? idx - 1 : idx + 1;
+        if (idx === -1) next = 0;
+        order[(next + order.length) % order.length].focus();
+      }
+    });
+
+    // Swipe. This is a mobile-heavy site, so it matters more than the arrows.
+    var touchX = null, touchY = null;
+    lb.addEventListener('touchstart', function (e) {
+      touchX = e.changedTouches[0].clientX;
+      touchY = e.changedTouches[0].clientY;
+    }, { passive: true });
+
+    lb.addEventListener('touchend', function (e) {
+      if (touchX === null) return;
+      var dx = e.changedTouches[0].clientX - touchX;
+      var dy = e.changedTouches[0].clientY - touchY;
+      // Ignore mostly-vertical drags so a scroll gesture doesn't page photos.
+      if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) go(dx < 0 ? 1 : -1);
+      touchX = touchY = null;
+    }, { passive: true });
+  })();
+
   /* ── Instagram wall ────────────────────────────────────────────────
      Drift animation is pure CSS (igDriftUp/igDriftDown), disabled by
      the reduced-motion media query.
@@ -442,12 +682,15 @@
        3. Create a feed (type: JSON) and copy the feed URL
        4. Paste it into IG_FEED_URL below
 
-     Every tile then shows a real post thumbnail and links to that
-     exact post, refreshing automatically as you post. Until the URL
-     is set, tiles show images/ig-1..6.jpg with the links in the HTML.
+     The wall currently holds 14 hand-picked reels — image and permalink
+     are baked into the HTML, so it works with no network call and no
+     third-party dependency. Setting IG_FEED_URL swaps that for a live
+     feed that refreshes itself as new posts go up; leave it blank to
+     keep the curated set. Editing a tile by hand is just a matter of
+     changing its href and img src in the markup below.
      ───────────────────────────────────────────────────────────────── */
   (function () {
-    var IG_FEED_URL = ''; // ← paste your Behold JSON feed URL here
+    var IG_FEED_URL = ''; // ← blank = use the curated tiles in the HTML
 
     if (!IG_FEED_URL) return;
     var tiles = $$('.ig-wall__tile');

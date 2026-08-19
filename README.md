@@ -1,103 +1,90 @@
-# Studie'o7 — Signature Lounge, Hopes
+# Studie'o7 Signature Lounge — website
 
-Single-page marketing site. Plain HTML / CSS / JS — no build step, no
-dependencies to install. Upload the folder and it runs.
+Single-page marketing site. Plain HTML, CSS and JavaScript. No build step, no
+dependencies, nothing to install.
 
-## Deploy
+## Folder structure
 
-Upload the whole folder so `index.html` sits at the web root:
+```
+studieo7-salon/
+├── index.html          the whole page
+├── css/styles.css      all styles (CSS custom-property tokens at the top)
+├── js/main.js          nav, hero slider, pricing, gallery lightbox, booking
+├── assets/
+│   ├── logo.png        wordmark, 2272x726 — hero
+│   ├── logo-sm.png     wordmark, 909x290 — nav + footer
+│   └── favicon.png     256x256 square
+└── images/
+    ├── hero-1.jpg      hero slider
+    ├── hero-2.jpg
+    ├── about.jpg       about section
+    ├── gallery-1..11.jpg   masonry gallery, in column-balanced order
+    ├── ig-1..14.jpg    Instagram wall tiles, 540x540
+    └── og-cover.jpg    1200x630 social share card
+```
 
-    index.html
-    css/styles.css
-    js/main.js
-    images/
-    assets/
+## How to host
 
-Works as-is on Netlify, Vercel, Cloudflare Pages, GitHub Pages, or any
-cPanel / shared host (drop into `public_html`). Serve over HTTPS — the
-booking form collects phone numbers.
+Any static host works. Upload the **contents** of this folder so that
+`index.html` sits at the web root — not the folder itself, or every URL gains
+an extra `/studieo7-salon/` segment.
 
-To preview locally:
+- **Netlify / Cloudflare Pages / Vercel** — drag this folder onto the deploy
+  drop zone. No build command, no output directory.
+- **cPanel / shared hosting** — upload into `public_html/`.
+- **Local preview** — `python3 -m http.server 8000`, then open
+  `http://localhost:8000`.
 
-    cd studio7-salon
-    python3 -m http.server 8000     # then open http://localhost:8000
+Opening `index.html` by double-click mostly works, but serve it over http for
+an accurate check: `file://` changes how relative paths and the map iframe
+resolve.
 
-Opening index.html by double-clicking mostly works, but a local server
-matches production behaviour.
+## Sections
 
-## Before you go live — 3 things to finish
+Hero slider · Services · About + why-choose-us + stats · Gallery (masonry,
+with lightbox) · Pricing (full 160-service tariff, tabs + search) ·
+Testimonials · Booking form · Instagram wall · Contact + map · Footer
 
-### 1. Booking form  (js/main.js — `sendBooking`, approx. line 333)
+## Contact details, in case they change
 
-The form validates, animates and shows the success message, but does NOT
-send anywhere yet. It logs the payload to the console. Pick one:
+The phone number appears in **four** places. Search for `7200105777`:
 
-  A. WhatsApp — no backend, opens a prefilled chat
-  B. Formspree / Web3Forms / Netlify Forms — email, no backend
-  C. Your own API endpoint
+| Where | What |
+|---|---|
+| `index.html` contact block | `tel:` link and the visible text |
+| `index.html` contact block | `wa.me` WhatsApp link |
+| `index.html` JSON-LD | `"telephone"` |
+| `js/main.js` | two "call us instead" booking-failure messages |
 
-Ready-made snippets for all three are in the comment directly above the
-function. Remove the `console.log` once wired — phone numbers are
-personal data and shouldn't sit in browser logs.
+Opening hours appear in **three** places — search for `22:00`:
 
-### 2. Instagram feed  (js/main.js — `IG_FEED_URL`, approx. line 450)
+| Where | What |
+|---|---|
+| `index.html` `<meta name="description">` | search-result snippet |
+| `index.html` contact block | the visible Hours line |
+| `index.html` JSON-LD | `openingHoursSpecification` |
 
-The Instagram wall currently shows the six images in `images/ig-*.jpg`.
-To make it live and self-updating:
+Current values: **Tue–Sun 10:00–22:00, Monday 10:00–20:00.**
 
-  1. Sign up at behold.so and connect @studieo7hopes
-  2. Copy the JSON feed URL
-  3. Paste it into `IG_FEED_URL`
+## Still to wire
 
-Until then the static images show — nothing breaks.
+**1. Booking form destination.** `sendBooking()` in `js/main.js` is a stub — it
+resolves after a short delay and the success card shows, but nothing is sent
+anywhere. The comment block directly above it documents the exact JSON payload
+shape to hand a backend or billing vendor. Three options:
 
-### 3. Real phone number
+- WhatsApp hand-off — build a `wa.me/917200105777?text=...` URL from the form
+  values and open it. Zero backend.
+- Formspree / Basin — swap the stub for a `fetch()` POST to the form endpoint.
+- Custom API — the payload contract is already written out in the comment;
+  the endpoint needs to answer the CORS preflight, which is also documented.
 
-Placeholder `+91 98765 43210` appears in FOUR places. Search and replace
-all of them:
+**2. Instagram feed.** The wall currently shows 14 curated images with real
+permalinks — it works as-is and needs nothing. `IG_FEED_URL` in `js/main.js` is
+the hook if you later want the tiles to auto-update from a live feed
+(via Behold.so or similar) instead of being hand-picked.
 
-  - index.html  line ~458  (contact block, twice: tel: link and label)
-  - index.html  line ~535  ("telephone" in the structured data)
-  - js/main.js  line ~396  (booking error message)
-  - js/main.js  line ~411  (booking error message)
-
-## Also worth updating
-
-- **Domain.** `https://studieo7.com/` is assumed in the canonical tag,
-  Open Graph tags and structured data (index.html, lines 9-16 and ~534).
-  Change if you host elsewhere.
-- **Favicon.** Currently `assets/logo.png`. A square, cropped icon would
-  render better in browser tabs than the wide wordmark.
-- **Photography.** Two gallery tiles (`gallery-7.jpg` styling station,
-  `gallery-8.jpg` treatment room) are video stills and are visibly softer
-  than the rest. Replace when you have better shots — same filename,
-  roughly 1.36:1 landscape.
-
-## Structure
-
-    index.html        all markup, meta tags, JSON-LD structured data
-    css/styles.css    design tokens at the top (:root), then sections in
-                      page order; responsive + reduced-motion at the end
-    js/main.js        nav, hero slider, pricing tabs/search, booking form,
-                      Instagram wall — plain JS, no framework
-    images/           hero, about, gallery, Instagram, og-cover
-    assets/logo.png   wordmark (nav, hero, footer)
-
-## Design tokens  (css/styles.css, `:root`)
-
-    --bg        #14200A   page base, hero, services, gallery, footer
-    --bg-alt    #1B2B0D   marquee, about, pricing sections
-    --panel     #0D1606   pricing tariff box only (darker, for contrast)
-    --card      #1E300F   booking form, dropdowns
-    --gold      #C9A468   accent, buttons, hairlines
-    --gold-2    #E8D5AE   bright gold, headings
-
-The green is sampled from the salon's own wall, darkened so gold text
-clears WCAG AA (gold on `--bg` = 7.2:1).
-
-## Accessibility notes
-
-Keep these if you edit: skip link, focus-visible rings, `aria-*` on the
-nav toggle / hero dots / pricing tabs / services dropdown, and the
-`prefers-reduced-motion` block at the foot of the stylesheet (it disables
-the marquee, drift, hero cue and booking animation).
+**3. Domain.** `index.html` has absolute URLs on the canonical link, the Open
+Graph tags and the JSON-LD, all pointing at `https://studieo7.com/`. Update
+them if the site lands on a different domain — otherwise social previews and
+search results will point at the wrong host.

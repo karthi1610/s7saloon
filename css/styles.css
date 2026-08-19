@@ -5,34 +5,44 @@
    ═══════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* Surfaces */
-  --bg:        #14200A;
-  --bg-alt:    #1B2B0D;
-  --card:      #1E300F;
-  --warm:      #21340F;
-  --warm-2:    #263C13;
-  --panel:     #0D1606;   /* deep green — pricing panel only */
+  /* Surfaces — light green */
+  --bg:        #D8EABC;
+  --bg-alt:    #C7E1A7;
+  --panel:     #E5EECE;   /* header, footer, pricing box */
+  --card:      #B9D68E;
+  --warm:      #C7E1A7;
+  --warm-2:    #B0D183;   /* hover / highlighted tiles */
+  --dark:      #E5EECE;
 
-  /* Accent */
-  --gold:      #c9a468;
-  --gold-2:    #e8d5ae;
-  --gold-grad: linear-gradient(120deg, var(--gold), var(--gold-2));
+  /* Accent — FILL colours (button faces, checkboxes, borders) */
+  --green:     #365B32;
+  --gold:      #C79A24;
+  --gold-2:    #E2C45C;
+  --gold-grad: linear-gradient(120deg, #C79A24, #E2C45C);
 
-  /* Type colours */
-  --head:      #f4efe6;
-  --body-str:  #ece7dd;
-  --body:      #e0dacd;
-  --body-mut:  #b8b1a6;
-  --muted:     #8a8378;
-  --faint:     #6b655c;
+  /* TEXT colours */
+  --text:      #18351F;   /* deep green — headings, body */
+  --text-2:    #365B32;   /* secondary green */
+  --text-gold: #8A670F;   /* gold text, LARGE type only (3.05:1 worst case) */
+  --text-gold-sm: #6B4F0D; /* gold text at body size — 4.6:1+ everywhere */
 
-  /* Hairlines */
-  --line:      rgba(201, 164, 104, .14);
-  --line-soft: rgba(201, 164, 104, .12);
-  --line-mid:  rgba(201, 164, 104, .25);
-  --line-str:  rgba(201, 164, 104, .5);
-  --tint:      rgba(201, 164, 104, .06);
-  --tint-2:    rgba(201, 164, 104, .12);
+  /* Role aliases */
+  --head:      var(--text);
+  --body-str:  var(--text);
+  --body:      var(--text-2);
+  --body-mut:  var(--text-2);
+  --muted:     var(--text-2);
+  --faint:     var(--text-2);
+  --on-dark:      #E5EECE;
+  --on-dark-mut:  #C7E1A7;
+
+  /* Hairlines — green ink */
+  --line:      rgba(24, 53, 31, .16);
+  --line-soft: rgba(24, 53, 31, .11);
+  --line-mid:  rgba(24, 53, 31, .24);
+  --line-str:  rgba(24, 53, 31, .42);
+  --tint:      rgba(54, 91, 50, .07);
+  --tint-2:    rgba(54, 91, 50, .14);
 
   /* Fonts */
   --f-display: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
@@ -74,11 +84,11 @@ ul { list-style: none; padding: 0; }
 
 .skip-link {
   position: absolute; left: 12px; top: -60px; z-index: 200;
-  background: var(--gold); color: var(--bg);
+  background: var(--gold); color: var(--text);
   padding: 10px 18px; font-size: 13px; letter-spacing: .18em;
   text-transform: uppercase; transition: top .25s;
 }
-.skip-link:focus { top: 12px; color: var(--bg); }
+.skip-link:focus { top: 12px; color: var(--text); }
 
 /* ── Shared type ─────────────────────────────────────────────────── */
 h2 {
@@ -124,13 +134,13 @@ h2 em { font-style: italic; color: var(--gold-2); }
 .btn--gold:hover {
   color: var(--bg);
   transform: translateY(-2px);
-  box-shadow: 0 14px 40px rgba(201, 164, 104, .45);
+  box-shadow: 0 14px 40px rgba(224, 188, 63, .45);
 }
 .btn--ghost {
   padding: 15px 40px; border-color: var(--line-str); color: var(--gold-2);
   background: transparent;
 }
-.btn--ghost:hover { border-color: var(--gold-2); background: rgba(201, 164, 104, .08); }
+.btn--ghost:hover { border-color: var(--gold-2); background: rgba(224, 188, 63, .08); }
 .btn--icon {
   width: 49px; height: 49px; border-color: var(--line-str); color: var(--gold-2);
 }
@@ -179,7 +189,7 @@ h2 em { font-style: italic; color: var(--gold-2); }
   position: fixed; inset: 0 0 auto 0; z-index: 100;
   display: flex; align-items: center; justify-content: space-between;
   padding: 18px var(--pad-x);
-  background: rgba(10, 10, 9, .72);
+  background: rgba(47, 84, 47, .90);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--line);
@@ -245,16 +255,14 @@ h2 em { font-style: italic; color: var(--gold-2); }
 }
 .hero__dots button[aria-selected="true"] { background: var(--gold-2); transform: scale(1.35); }
 
+/* Flat, even scrim — no radial vignette, no gradient fade at the foot.
+   Photography stays plain; the tint only exists so the type stays legible. */
 .hero__vignette {
   position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(ellipse at center, rgba(10,10,9,.62) 0%, rgba(10,10,9,.90) 100%);
+  background: rgba(16, 34, 20, .50);
   opacity: 0; transition: opacity 1.1s ease;
 }
-.hero__fade {
-  position: absolute; inset: auto 0 20% 0; height: 40%; pointer-events: none;
-  background: linear-gradient(to bottom, transparent, rgba(10,10,9,.6));
-  opacity: 0; transition: opacity 1.1s ease;
-}
+.hero__fade { display: none; }
 .hero.is-loaded .hero__vignette,
 .hero.is-loaded .hero__fade { opacity: 1; }
 
@@ -273,6 +281,36 @@ h2 em { font-style: italic; color: var(--gold-2); }
   font-size: clamp(15px, 2.2vw, 18px);
   line-height: 1.7; color: #cfc8bc;
 }
+/* The hero photo is a bright, busy storefront, so the 50% vignette alone
+   isn't enough to carry gold type. These rules are scoped to .hero so the
+   ghost button elsewhere (booking confirmation) keeps its quiet styling. */
+.hero .eyebrow--wide {
+  color: #F3DE9A;
+  font-weight: 600;
+  text-shadow: 0 1px 3px rgba(0,0,0,.9), 0 0 18px rgba(0,0,0,.75);
+}
+
+.hero .btn--ghost,
+.hero .btn--icon {
+  color: #F3DE9A;
+  border-color: rgba(243, 222, 154, .72);
+  /* Own backdrop so the label reads over whichever part of the photo it
+     lands on, rather than depending on the vignette. */
+  background: rgba(10, 18, 7, .58);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  text-shadow: 0 1px 3px rgba(0,0,0,.8);
+}
+.hero .btn--ghost:hover,
+.hero .btn--ghost:focus-visible,
+.hero .btn--icon:hover,
+.hero .btn--icon:focus-visible {
+  color: var(--text);
+  background: var(--gold-2);
+  border-color: var(--gold-2);
+  text-shadow: none;
+}
+
 .hero__cta {
   display: flex; gap: 18px; justify-content: center; flex-wrap: wrap;
   pointer-events: auto;
@@ -287,21 +325,21 @@ h2 em { font-style: italic; color: var(--gold-2); }
   font-size: 10px; letter-spacing: .4em; text-transform: uppercase; color: var(--muted);
 }
 .hero__cue-line {
-  width: 1px; height: 44px; background: rgba(201,164,104,.35); overflow: hidden;
+  width: 1px; height: 44px; background: rgba(224,188,63,.35); overflow: hidden;
 }
 .hero__cue-line i { display: block; width: 1px; height: 16px; background: var(--gold-2); animation: scrollcue 1.8s ease-in-out infinite; }
 
 /* ── Marquee ─────────────────────────────────────────────────────── */
 .marquee {
   overflow: hidden; padding: 22px 0; background: var(--bg-alt);
-  border-top: 1px solid rgba(201,164,104,.16);
-  border-bottom: 1px solid rgba(201,164,104,.16);
+  border-top: 1px solid rgba(224,188,63,.16);
+  border-bottom: 1px solid rgba(224,188,63,.16);
 }
 .marquee__track { display: flex; width: max-content; animation: marquee 28s linear infinite; }
 .marquee__group { display: flex; align-items: center; gap: 64px; padding-right: 64px; white-space: nowrap; }
 .marquee__group span {
   font-family: var(--f-display); font-size: 22px;
-  letter-spacing: .28em; text-transform: uppercase; color: #7d766a;
+  letter-spacing: .28em; text-transform: uppercase; color: var(--text-2);
 }
 .marquee__group i { color: var(--gold); font-size: 12px; font-style: normal; }
 
@@ -332,7 +370,7 @@ h2 em { font-style: italic; color: var(--gold-2); }
 .service:nth-child(7) { grid-column: 4 / span 1; }
 .service__icon {
   width: 54px; height: 54px; margin: 0 auto 20px;
-  border: 1px solid rgba(201,164,104,.4); border-radius: 50%;
+  border: 1px solid rgba(224,188,63,.4); border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   color: var(--gold-2);
   animation: floaty 5s ease-in-out infinite;
@@ -422,7 +460,7 @@ h2 em { font-style: italic; color: var(--gold-2); }
 .why-stat { text-align: center; }
 .why-stat__icon {
   width: 52px; height: 52px; margin: 0 auto 16px;
-  border: 1px solid rgba(201,164,104,.4); border-radius: 50%;
+  border: 1px solid rgba(224,188,63,.4); border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   color: var(--gold-2);
 }
@@ -462,14 +500,78 @@ h2 em { font-style: italic; color: var(--gold-2); }
   display: flex; align-items: baseline; justify-content: space-between;
   gap: 20px; margin-bottom: clamp(34px, 4.5vw, 54px);
 }
-.gallery__grid {
-  display: grid; grid-template-columns: repeat(4, 1fr);
-  grid-auto-rows: clamp(140px, 17vw, 220px); gap: 14px;
+/* Masonry rather than a fixed mosaic: the gallery mixes 4:5 promo posters
+   (which carry text overlays a crop would slice through) with 16:9 room
+   shots. Columns let every image keep its own aspect ratio, and new photos
+   can be dropped in at any size without reworking the grid. */
+.gallery__grid { columns: 3; column-gap: 14px; }
+.g { break-inside: avoid; margin-bottom: 14px; }
+.g .img-slot { height: auto; }
+.g .img-slot img { position: static; height: auto; object-fit: unset; }
+.g .img-slot.is-empty { min-height: 220px; }
+
+/* Tiles become buttons at runtime (see JS). Cursor + focus ring here so the
+   affordance is right even before the script runs. */
+.g .img-slot[role="button"] { cursor: zoom-in; }
+.g .img-slot[role="button"]:focus-visible {
+  outline: 2px solid var(--gold); outline-offset: 3px;
 }
-.g { min-height: 0; }
-.g--big  { grid-column: span 2; grid-row: span 2; }
-.g--tall { grid-row: span 2; }
-.g--wide { grid-column: span 2; }
+.g .img-slot[role="button"] img { transition: transform .5s cubic-bezier(.2,.7,.3,1); }
+@media (hover: hover) {
+  .g .img-slot[role="button"]:hover img { transform: scale(1.045); }
+}
+
+/* ── Lightbox ────────────────────────────────────────────────────── */
+.lb {
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  padding: clamp(52px, 7vw, 76px) clamp(12px, 6vw, 88px);
+  background: rgba(8, 14, 5, .96);
+  opacity: 0; transition: opacity .26s ease;
+}
+.lb[hidden] { display: none; }
+.lb.is-open { opacity: 1; }
+
+.lb__fig { margin: 0; max-width: 100%; }
+.lb__img {
+  display: block; margin: 0 auto; max-width: 100%; max-height: 76vh;
+  object-fit: contain; opacity: 0; transition: opacity .22s ease;
+}
+.lb__img.is-ready { opacity: 1; }
+.lb__btn {
+  position: absolute; display: grid; place-items: center;
+  width: clamp(40px, 5vw, 52px); height: clamp(40px, 5vw, 52px);
+  border-radius: 50%; cursor: pointer;
+  background: rgba(229, 238, 206, .10);
+  border: 1px solid rgba(229, 238, 206, .34);
+  color: var(--on-dark); font-size: 20px; line-height: 1;
+  transition: background .18s ease, color .18s ease, border-color .18s ease;
+}
+.lb__btn:hover, .lb__btn:focus-visible {
+  background: var(--gold); border-color: var(--gold); color: var(--text);
+}
+.lb__btn:focus-visible { outline: 2px solid var(--on-dark); outline-offset: 2px; }
+.lb__prev  { left:  clamp(10px, 2.5vw, 30px); top: 50%; transform: translateY(-50%); }
+.lb__next  { right: clamp(10px, 2.5vw, 30px); top: 50%; transform: translateY(-50%); }
+.lb__close { right: clamp(10px, 2.5vw, 30px); top: clamp(12px, 2.5vw, 24px); }
+
+.lb__count {
+  position: absolute; left: clamp(14px, 3vw, 32px); top: clamp(18px, 3vw, 32px);
+  color: var(--on-dark-mut); font-size: 12px; letter-spacing: .22em;
+}
+
+/* On phones the side arrows would sit on the photo, so drop them to a bar
+   underneath. Swipe works either way. */
+@media (max-width: 620px) {
+  .lb { padding: 60px 10px 92px; }
+  .lb__img { max-height: 66vh; }
+  .lb__prev { left: calc(50% - 62px); top: auto; bottom: 22px; transform: none; }
+  .lb__next { right: calc(50% - 62px); top: auto; bottom: 22px; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lb, .lb__img, .g .img-slot[role="button"] img { transition: none; }
+}
 
 /* ── Pricing ─────────────────────────────────────────────────────── */
 .pricing {
@@ -600,8 +702,8 @@ h2 em { font-style: italic; color: var(--gold-2); }
 }
 .svc__desc { margin-top: 5px; font-size: 12.5px; line-height: 1.6; color: var(--muted); max-width: 62ch; }
 .svc__price { text-align: right; font-variant-numeric: tabular-nums; }
-.svc__m { font-size: 16px; font-weight: 500; color: var(--gold-2); letter-spacing: .02em; }
-.svc__nm { margin-top: 3px; font-size: 12px; color: var(--faint); text-decoration: line-through; }
+.svc__m { font-size: 16px; font-weight: 600; color: var(--head); letter-spacing: .02em; }
+.svc__nm { margin-top: 3px; font-size: 12px; color: var(--muted); text-decoration: line-through; }
 .svc__where { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--faint); margin-bottom: 6px; }
 
 .tariff__empty { padding: 70px 0; text-align: center; color: var(--muted); font-size: 14px; }
@@ -620,22 +722,22 @@ h2 em { font-style: italic; color: var(--gold-2); }
 .pricing__foot p { font-size: 13px; color: var(--muted); }
 .pricing__cta {
   display: inline-block; padding: 15px 34px; background: var(--gold-grad);
-  color: #14200A; font-size: 12px; letter-spacing: .28em; text-transform: uppercase;
+  color: #243B25; font-size: 12px; letter-spacing: .28em; text-transform: uppercase;
   font-weight: 500; transition: opacity .3s;
 }
-.pricing__cta:hover { opacity: .86; color: #14200A; }
+.pricing__cta:hover { opacity: .86; color: #243B25; }
 
 /* ── Testimonials ────────────────────────────────────────────────── */
 .quotes { padding: var(--sec-y) var(--pad-x); max-width: 860px; margin: 0 auto; text-align: center; }
 .quotes__mark {
   font-family: var(--f-display); font-size: 110px; line-height: .4;
-  color: rgba(201,164,104,.45); margin-bottom: 8px;
+  color: rgba(224,188,63,.45); margin-bottom: 8px;
 }
 .quotes__body { margin: 0; }
 .quotes__text {
   min-height: 120px;
   font-family: var(--f-display); font-size: clamp(22px, 3.6vw, 32px);
-  line-height: 1.5; color: #e8e2d5;
+  line-height: 1.5; color: var(--text);
   transition: opacity .5s;
 }
 .quotes__name {
@@ -666,7 +768,7 @@ h2 em { font-style: italic; color: var(--gold-2); }
 .book__perks i { color: var(--gold-2); font-style: normal; }
 
 .book__card {
-  background: var(--card); border: 1px solid rgba(201,164,104,.22);
+  background: var(--card); border: 1px solid rgba(224,188,63,.22);
   padding: clamp(28px, 4vw, 44px) clamp(22px, 3.6vw, 42px);
   box-shadow: 0 30px 80px rgba(0, 0, 0, .5);
 }
@@ -684,14 +786,14 @@ h2 em { font-style: italic; color: var(--gold-2); }
   width: 100%;
 }
 .field select, .field input[type="date"], .field input[type="time"] {
-  background: var(--card); color-scheme: dark;
+  background: var(--card); color-scheme: light;
 }
 .field textarea { resize: vertical; }
 .field input::placeholder, .field textarea::placeholder { color: var(--faint); }
 .field input:focus, .field select:focus, .field textarea:focus {
   outline: none; border-color: var(--gold);
 }
-.field.has-error input { border-color: #b4674f; }
+.field.has-error input { border-color: #8E3A22; }
 
 .field__hint {
   text-transform: none; letter-spacing: 0; font-size: 11px; color: var(--faint);
@@ -712,10 +814,10 @@ h2 em { font-style: italic; color: var(--gold-2); }
 .segmented__opt input {
   position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none;
 }
-.segmented__opt:has(input:checked) { background: var(--gold); color: #14200A; }
+.segmented__opt:has(input:checked) { background: var(--gold); color: #243B25; }
 .segmented__opt:has(input:focus-visible) { outline: 2px solid var(--gold-2); outline-offset: -2px; }
 .segmented__opt:hover { color: var(--head); }
-.segmented__opt:has(input:checked):hover { color: #14200A; }
+.segmented__opt:has(input:checked):hover { color: #243B25; }
 
 /* Services — custom multi-select dropdown */
 .msel { position: relative; }
@@ -752,15 +854,19 @@ h2 em { font-style: italic; color: var(--gold-2); }
   display: flex; align-items: center; justify-content: center;
   transition: background .2s, border-color .2s;
 }
-.msel__opt-check svg { opacity: 0; width: 11px; height: 11px; color: #14200A; transition: opacity .15s; }
+.msel__opt-check svg { opacity: 0; width: 11px; height: 11px; color: #243B25; transition: opacity .15s; }
 .msel__opt[aria-selected="true"] { color: var(--head); }
 .msel__opt[aria-selected="true"] .msel__opt-check { background: var(--gold); border-color: var(--gold); }
 .msel__opt[aria-selected="true"] .msel__opt-check svg { opacity: 1; }
 
+.hp {
+  position: absolute; left: -9999px; width: 1px; height: 1px;
+  overflow: hidden; opacity: 0; pointer-events: none;
+}
 .form .btn--block { margin-top: 30px; }
 .form__error {
   margin-top: 16px; min-height: 18px; text-align: center;
-  font-size: 12px; color: #d08c74; letter-spacing: .06em;
+  font-size: 12px; color: #8E3A22; letter-spacing: .06em;
 }
 
 .booked { text-align: center; padding: clamp(30px, 5vw, 70px) 0; }
@@ -833,14 +939,14 @@ a.contact__val:hover { color: var(--gold-2); }
 .contact__val--gold { color: var(--gold-2); }
 .contact__sub { color: var(--muted); font-size: 14px; }
 
-.contact__map { position: relative; min-height: clamp(300px, 40vw, 460px); border: 1px solid rgba(201,164,104,.22); }
+.contact__map { position: relative; min-height: clamp(300px, 40vw, 460px); border: 1px solid rgba(224,188,63,.22); }
 .contact__map iframe {
   position: absolute; inset: 0; width: 100%; height: 100%; border: 0;
   filter: grayscale(1) invert(.92) contrast(.9) sepia(.25);
 }
 .contact__map-note {
   position: absolute; inset: auto 0 0 0; padding: 10px 16px;
-  background: rgba(20,32,10,.85);
+  background: rgba(24,53,31,.88);
   font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--muted);
   pointer-events: none;
 }
@@ -882,7 +988,7 @@ a.contact__val:hover { color: var(--gold-2); }
 .ig-wall__scrim {
   position: absolute; inset: 0; pointer-events: none;
   background: radial-gradient(ellipse 70% 80% at 30% 55%,
-    rgba(20,32,10,.96) 20%, rgba(20,32,10,.55) 55%, rgba(20,32,10,.1));
+    rgba(216,234,188,.97) 20%, rgba(216,234,188,.70) 55%, rgba(216,234,188,.22));
 }
 
 .ig-wall__copy {
@@ -912,7 +1018,12 @@ a.contact__val:hover { color: var(--gold-2); }
   pointer-events: none;
 }
 .footer__logo { height: 32px; width: auto; }
+.footer__mid { display: flex; flex-direction: column; align-items: center; gap: 7px; }
 .footer__copy { font-size: 12px; letter-spacing: .14em; color: var(--faint); text-align: center; }
+.footer__place {
+  font-size: 11px; letter-spacing: .3em; text-transform: uppercase;
+  color: var(--text-gold-sm); text-align: center;
+}
 .footer__top {
   pointer-events: auto;
   font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: var(--muted);
@@ -932,8 +1043,8 @@ a.contact__val:hover { color: var(--gold-2); }
 @keyframes scrollcue { 0% { transform: translateY(0); opacity: 1; } 70% { transform: translateY(14px); opacity: 0; } 100% { transform: translateY(0); opacity: 0; } }
 @keyframes spinSlow  { from { transform: rotate(0); } to { transform: rotate(360deg); } }
 @keyframes glowPulse {
-  0%, 100% { box-shadow: 0 0 0 rgba(201,164,104,0); }
-  50%      { box-shadow: 0 10px 44px rgba(201,164,104,.55), 0 0 24px rgba(232,213,174,.35); }
+  0%, 100% { box-shadow: 0 0 0 rgba(224,188,63,0); }
+  50%      { box-shadow: 0 10px 44px rgba(224,188,63,.55), 0 0 24px rgba(235,206,100,.35); }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1004,7 +1115,7 @@ a.contact__val:hover { color: var(--gold-2); }
   .tariff__search input { width: 100%; }
 
   .gallery__head { flex-direction: column; align-items: flex-start; gap: 10px; }
-  .gallery__grid { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 44vw; }
+  .gallery__grid { columns: 2; }
   .g--big  { grid-column: span 2; grid-row: span 1; }
   .g--tall { grid-row: span 1; }
   .g--wide { grid-column: span 2; }
@@ -1034,7 +1145,8 @@ a.contact__val:hover { color: var(--gold-2); }
   .quotes__text { min-height: 150px; }
   .stats { gap: 26px; }
   .stat { min-width: 90px; }
-  .gallery__grid { grid-auto-rows: 46vw; }
+  .gallery__grid { columns: 2; column-gap: 10px; }
+  .g { margin-bottom: 10px; }
 
   .svc__row { grid-template-columns: 1fr; gap: 10px; }
   .svc__price { text-align: left; display: flex; align-items: baseline; gap: 12px; }
@@ -1078,3 +1190,81 @@ a.contact__val:hover { color: var(--gold-2); }
     animation-iteration-count: 1 !important;
   }
 }
+
+/* ══ TEXT COLOUR MAPPING ═══════════════════════════════════════════
+   --gold / --gold-2 are FILL colours only — at 2.2:1 and 1.5:1 on the
+   light green they are unusable as type. Gold TEXT uses --text-gold
+   for large display type and --text-gold-sm at body sizes. */
+
+h2 em,
+.about__stat-n,
+.achv-card__value,
+/* The three selectors above don't match the markup — the real elements are
+   .stat dd / .why-stat dd. Kept in place so the mapping still applies if the
+   markup is ever renamed to match. */
+.stat dd,
+.why-stat dd,
+.ig-wall__headline em { color: var(--text-gold); }
+
+.svc__m,
+.achv-card h4,
+.quotes__name         { color: var(--text-gold-sm); }
+
+.eyebrow,
+.pricing__member,
+.pricing__member b,
+.grp[aria-selected="true"],
+.cat[aria-current="true"],
+.cat[aria-current="true"] .cat__n,
+.tariff__kicker,
+.tariff__badge,
+.achv-card__label,
+.book__perks i,
+.contact__val--gold,
+.ig-wall__handle,
+.marquee__group i,
+.btn--ghost,
+.btn--icon,
+a                      { color: var(--text-gold-sm); }
+
+a:hover,
+.btn--ghost:hover,
+.btn--icon:hover,
+a.contact__val:hover,
+.ig-wall__handle:hover { color: var(--text); }
+
+.svc__nm               { color: var(--text-2); }
+
+/* ══ LIGHT GREEN THEME ══════════════════════════════════════════════ */
+
+.nav                   { background: rgba(229, 238, 206, .92); border-bottom: 1px solid var(--line); }
+.nav__menu > a:not(.btn)       { color: var(--text-2); }
+.nav__menu > a:not(.btn):hover { color: var(--text); }
+.nav__bar              { background: var(--text); }
+
+.marquee               { background: var(--panel); border-color: var(--line); }
+.marquee__item         { color: var(--text-2); }
+
+.footer                { background: var(--panel); border-top: 1px solid var(--line); }
+.footer__note          { color: var(--text-2); }
+.footer a,
+.footer__top           { color: var(--text-gold-sm); }
+.footer a:hover,
+.footer__top:hover     { color: var(--text); }
+
+/* Gold buttons: deep green ink, 5.2:1 on the fill. */
+.btn--gold             { color: var(--text); }
+.btn--gold:hover       { color: var(--text); box-shadow: 0 12px 32px rgba(199, 154, 36, .34); }
+.btn--ghost            { border-color: var(--line-str); }
+.btn--ghost:hover      { border-color: var(--text); background: var(--tint-2); }
+.btn--icon             { border-color: var(--line-str); }
+
+/* Cards lift with a soft shadow — glows only read on dark. */
+.tariff,
+.book__form            { box-shadow: 0 10px 30px rgba(24, 53, 31, .09); }
+.service               { box-shadow: none; }
+
+/* Native pickers must match the light card. */
+.field input,
+.field select,
+.field textarea        { color-scheme: light; }
