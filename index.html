@@ -54,12 +54,18 @@
   <div class="hero__slides">
     <div class="hero__slide is-active">
       <div class="img-slot" data-label="Hero photo 1 — storefront at night">
-        <img src="images/hero-1.jpg" alt="The illuminated Studie'o7 Signature Lounge storefront at Hopes, Coimbatore" fetchpriority="high">
+        <picture>
+          <source media="(max-width: 860px)" srcset="images/hero-1-mobile.jpg">
+          <img src="images/hero-1.jpg" alt="The illuminated Studie'o7 Signature Lounge storefront at Hopes, Coimbatore" fetchpriority="high">
+        </picture>
       </div>
     </div>
     <div class="hero__slide">
       <div class="img-slot" data-label="Hero photo 2 — storefront, street view">
-        <img src="images/hero-2.jpg" alt="Studie'o7 Signature Lounge frontage lit up along Avinashi Road" loading="lazy">
+        <picture>
+          <source media="(max-width: 860px)" srcset="images/hero-2-mobile.jpg">
+          <img src="images/hero-2.jpg" alt="Studie'o7 Signature Lounge frontage lit up along Avinashi Road" loading="lazy">
+        </picture>
       </div>
     </div>
   </div>

@@ -1185,4 +1185,396 @@
     renderPricing();
   })();
 
+  /* ── Mobile card-stack scroll ──────────────────────────────────────
+     On viewports ≤860px (and only when reduced-motion is OFF), the main
+     sections become a horizontally-sliding card stack driven by scroll.
+     Built and torn down live via matchMedia so rotating a phone or
+     resizing a desktop window stays correct. Desktop is never touched.
+     ───────────────────────────────────────────────────────────────── */
+  (function () {
+    var mq = window.matchMedia('(max-width: 860px)');
+    var rm = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+    // Which sections become cards, in order. Marquee stays out (decorative).
+    // On mobile, About is intentionally NOT its own card — its "Our story"
+    // block is merged into the Services card (see build()), and Why-choose-us
+    // / Achievements are dropped entirely. So About is excluded here.
+    var SECTION_IDS = ['hero', 'services', 'gallery', 'pricing', 'book', 'contact'];
+
+    var main = $('#main');
+    if (!main) return;
+
+    var built = false;
+    var stack, stage, cards = [], dims = [], dots = [], dotsWrap;
+    var cue = $('.hero__cue');
+    var rafPending = false;
+    var placeholders = [];   // comment nodes marking original positions
+    var storyNode = null;    // "Our story" block cloned into the services card
+    var stackTop = 0;        // document offset of the stack's top edge
+    var vhCache = 0;
+    var starts = [];         // scroll offset (px) where each card's budget begins
+    var extras = [];         // per-card internal read distance (px)
+    var inners = [];         // per-card scrollable inner element (or null)
+
+    function headerStrip(isHero) {
+      var head = document.createElement('div');
+      head.className = 'card__head';
+
+      var brand = document.createElement('a');
+      brand.className = 'card__brand';
+      brand.href = '#hero';
+      brand.setAttribute('aria-label', "Studie'o7 home");
+      // Two logos: light for the hero gradient, dark for solid strips.
+      brand.innerHTML =
+        '<img class="card__brand-light" src="assets/logo.png" alt="Studie\'o7" width="440" height="141">' +
+        '<img class="card__brand-dark" src="assets/logo-sm.png" alt="Studie\'o7" width="440" height="141">';
+
+      var toggle = document.createElement('button');
+      toggle.className = 'card__toggle';
+      toggle.type = 'button';
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.setAttribute('aria-controls', 'nav-menu');
+      toggle.setAttribute('aria-label', 'Open menu');
+      toggle.innerHTML = '<span class="nav__bar"></span><span class="nav__bar"></span><span class="nav__bar"></span>';
+      toggle.addEventListener('click', function () {
+        var menu = $('.nav__menu');
+        if (!menu) return;
+        var open = menu.classList.toggle('is-open');
+        // Keep every card toggle's state in sync.
+        $$('.card__toggle').forEach(function (t) {
+          t.setAttribute('aria-expanded', String(open));
+          t.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+        });
+      });
+
+      head.appendChild(brand);
+      head.appendChild(toggle);
+      return head;
+    }
+
+    // On mobile, About isn't its own card. Pull the "Our story" copy from
+    // the (hidden) About section and append a compact version into the
+    // Services card, so scrolling Services reveals the story right after the
+    // service tiles. Cloned (not moved) so desktop's About stays intact.
+    function mergeStory() {
+      var servicesCard = null;
+      for (var i = 0; i < cards.length; i++) {
+        if (cards[i].classList.contains('card--services')) { servicesCard = cards[i]; break; }
+      }
+      var about = document.getElementById('about');
+      if (!servicesCard || !about) return;
+      var copy = about.querySelector('.about__copy');
+      if (!copy) return;
+
+      var wrap = document.createElement('div');
+      wrap.className = 'services__story';
+
+      // Take eyebrow, heading, the story paragraphs and the CTA — skip the
+      // stats grid and the "since 2017" strip to keep the card compact.
+      var eyebrow = copy.querySelector('.eyebrow');
+      var heading = copy.querySelector('#about-h');
+      if (eyebrow) wrap.appendChild(eyebrow.cloneNode(true));
+      if (heading) {
+        var h = heading.cloneNode(true);
+        h.removeAttribute('id');           // avoid duplicate id with desktop About
+        h.removeAttribute('data-rv');
+        wrap.appendChild(h);
+      }
+      copy.querySelectorAll(':scope > p').forEach(function (para) {
+        if (para.classList.contains('eyebrow')) return;   // already added above
+        var c = para.cloneNode(true);
+        c.removeAttribute('data-rv'); c.removeAttribute('data-rv-delay');
+        wrap.appendChild(c);
+      });
+      var cta = copy.querySelector('.about__cta');
+      if (cta) {
+        var cc = cta.cloneNode(true);
+        cc.removeAttribute('data-rv'); cc.removeAttribute('data-rv-delay');
+        wrap.appendChild(cc);
+      }
+
+      var sec = servicesCard.querySelector(':scope > section');
+      if (sec) { sec.appendChild(wrap); storyNode = wrap; }
+    }
+
+    function unmergeStory() {
+      if (storyNode && storyNode.parentNode) storyNode.parentNode.removeChild(storyNode);
+      storyNode = null;
+    }
+
+    function build() {
+      if (built) return;
+
+      stack = document.createElement('div');
+      stack.className = 'cardstack';
+      stage = document.createElement('div');
+      stage.className = 'cardstack__stage';
+      stack.appendChild(stage);
+
+      cards = []; dims = []; placeholders = [];
+
+      SECTION_IDS.forEach(function (id, i) {
+        var sec = document.getElementById(id);
+        if (!sec) return;
+
+        // Leave a placeholder comment so we can restore exact order later.
+        var mark = document.createComment('cardstack:' + id);
+        sec.parentNode.insertBefore(mark, sec);
+        placeholders.push({ mark: mark, sec: sec });
+
+        var card = document.createElement('div');
+        card.className = 'card card--' + id;
+        if (id === 'hero') card.classList.add('card--hero');
+
+        var head = headerStrip(id === 'hero');
+        var dim = document.createElement('div');
+        dim.className = 'card__dim';
+
+        card.appendChild(head);
+        card.appendChild(sec);   // moves the section out of flow into the card
+        card.appendChild(dim);
+        stage.appendChild(card);
+
+        cards.push(card);
+        dims.push(dim);
+      });
+
+      mergeStory();   // append "Our story" into the Services (what-we-do) card
+
+      // Wrap each non-hero section's children in a .card__inner element we
+      // can translate for reading. Hero stays unwrapped (full-bleed image).
+      cards.forEach(function (card) {
+        if (card.classList.contains('card--hero')) return;
+        var sec = card.querySelector(':scope > section');
+        if (!sec || sec.querySelector(':scope > .card__inner')) return;
+        var inner = document.createElement('div');
+        inner.className = 'card__inner';
+        while (sec.firstChild) inner.appendChild(sec.firstChild);
+        sec.appendChild(inner);
+      });
+
+      // Insert the stack where the hero used to be (first placeholder).
+      var firstMark = placeholders[0].mark;
+      firstMark.parentNode.insertBefore(stack, firstMark);
+
+      // Turn on card-stack styling FIRST so sections are constrained to
+      // 100svh before we measure their overflow — otherwise scrollHeight
+      // reflects each section's full natural height and the read budget
+      // becomes wildly too large (blank space appears mid-card).
+      document.documentElement.classList.add('cardstack-on');
+
+      // Progress dots.
+      dotsWrap = document.createElement('div');
+      dotsWrap.className = 'cardstack__dots';
+      dotsWrap.setAttribute('aria-hidden', 'true');
+      dots = cards.map(function () {
+        var d = document.createElement('i');
+        dotsWrap.appendChild(d);
+        return d;
+      });
+      document.body.appendChild(dotsWrap);
+
+      built = true;
+
+      // measure() computes each card's scroll budget and sets stack height.
+      // Run once now, then again on the next frame and on full load so late
+      // layout (fonts, lazy images) can't leave the budget stale.
+      measure();
+      requestAnimationFrame(function () { if (built) { measure(); update(); } });
+      window.addEventListener('load', onLoadMeasure);
+
+      window.addEventListener('scroll', onScroll, { passive: true });
+      document.addEventListener('click', onAnchorClick, true);
+      update();
+    }
+
+    function onLoadMeasure() { if (built) { measure(); update(); } }
+
+    function teardown() {
+      if (!built) return;
+
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('load', onLoadMeasure);
+      document.removeEventListener('click', onAnchorClick, true);
+
+      unmergeStory();
+
+      // Move each section back to its original spot, then drop the scaffold.
+      placeholders.forEach(function (p) {
+        var sec = p.sec;
+        // Unwrap .card__inner: move its children back up and remove it.
+        var wrap = sec && sec.querySelector(':scope > .card__inner');
+        if (wrap) {
+          wrap.style.transform = '';
+          while (wrap.firstChild) sec.insertBefore(wrap.firstChild, wrap);
+          sec.removeChild(wrap);
+        }
+        p.mark.parentNode.insertBefore(sec, p.mark);
+        p.mark.parentNode.removeChild(p.mark);
+      });
+      if (stack && stack.parentNode) stack.parentNode.removeChild(stack);
+      if (dotsWrap && dotsWrap.parentNode) dotsWrap.parentNode.removeChild(dotsWrap);
+
+      document.documentElement.classList.remove('cardstack-on');
+      cards = []; dims = []; dots = []; placeholders = [];
+      starts = []; extras = []; inners = [];
+      built = false;
+    }
+
+    // Lay out each card's scroll budget. A card occupies:
+    //   [start, start+vh]          → slide-in (previous card covers it)
+    //   [start+vh, start+vh+extra] → HOLD & READ (section scrolls internally)
+    //   next card slides in only AFTER the read completes.
+    // Reading is driven by setting the section's native scrollTop (not a
+    // transform) so sticky headers, inner scrollers and dynamically-rendered
+    // lists all lay out correctly. Guarantees the next section never appears
+    // until the current one is fully scrolled — same in reverse. Sets height.
+    function measure() {
+      var vh = window.innerHeight || document.documentElement.clientHeight;
+      vhCache = vh;
+      starts = []; extras = []; inners = [];
+
+      var acc = 0;
+      for (var i = 0; i < cards.length; i++) {
+        var sec = cards[i].querySelector(':scope > section, :scope > .hero');
+        var wrap = sec ? sec.querySelector(':scope > .card__inner') : null;
+        var extra = 0;
+        if (sec) {
+          if (wrap) wrap.style.transform = '';   // reset before measuring
+          // Available content area = viewport minus the section's top/bottom
+          // padding (header clearance + bottom gap).
+          var cs = window.getComputedStyle(sec);
+          var padT = parseFloat(cs.paddingTop) || 0;
+          var padB = parseFloat(cs.paddingBottom) || 0;
+          var avail = sec.clientHeight - padT - padB;
+          var contentH = wrap ? wrap.scrollHeight : (sec.scrollHeight - padT - padB);
+          extra = Math.max(0, Math.round(contentH - avail));
+          if (extra < 24) extra = 0;
+          cards[i].classList.toggle('card--scroll', extra > 0);
+        }
+        inners.push(wrap || null);
+        extras.push(extra);
+        starts.push(acc);
+        acc += vh + extra;
+      }
+      stack.style.height = (acc + vh) + 'px';
+      stackTop = stack.getBoundingClientRect().top + (window.pageYOffset || 0);
+    }
+
+    // Sections live inside absolutely-positioned cards, so they have no
+    // scrollable document offset — translate the target id to its card's
+    // scroll zone (stackTop + index × viewport) and scroll there instead.
+    function onAnchorClick(e) {
+      var a = e.target.closest && e.target.closest('a[href^="#"]');
+      if (!a) return;
+      var id = a.getAttribute('href').slice(1);
+      if (!id) return;
+
+      // #about is merged into Services on mobile — send those links there.
+      if (id === 'about') id = 'services';
+
+      var idx = SECTION_IDS.indexOf(id);
+      // A link may point at an element nested inside a card (not the card's
+      // own id) — resolve by walking up to the nearest .card.
+      if (idx === -1) {
+        var target = document.getElementById(id);
+        var card = target && target.closest && target.closest('.card');
+        if (card) idx = cards.indexOf(card);
+      }
+      if (idx === -1) return;   // not a carded section — let the browser handle it
+
+      e.preventDefault();
+      var behavior = rm.matches ? 'auto' : 'smooth';
+      // Land at the card's read start (just after slide-in completes).
+      window.scrollTo({ top: Math.round(stackTop + (starts[idx] || 0)), behavior: behavior });
+
+      // Close the mobile menu if it was open.
+      var menu = $('.nav__menu');
+      if (menu && menu.classList.contains('is-open')) {
+        menu.classList.remove('is-open');
+        $$('.card__toggle').forEach(function (t) {
+          t.setAttribute('aria-expanded', 'false');
+          t.setAttribute('aria-label', 'Open menu');
+        });
+      }
+    }
+
+    function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+
+    function update() {
+      rafPending = false;
+      if (!built) return;
+
+      var vh = vhCache || window.innerHeight;
+      var st = (window.pageYOffset || document.documentElement.scrollTop) - stackTop;
+      if (st < 0) st = 0;
+
+      for (var i = 0; i < cards.length; i++) {
+        var card = cards[i];
+        var start = starts[i];
+        var extra = extras[i] || 0;
+        var local = st - start;   // scroll position within THIS card's budget
+
+        // Slide-in: card i covers card i-1 as st moves through the previous
+        // card's final viewport, i.e. from (start - vh) up to start.
+        var pIn = clamp((st - (start - vh)) / vh, 0, 1);
+
+        // Read: once fully in (local >= 0), the next `extra` px translate the
+        // content up. The stack does NOT advance during this window, so the
+        // next card is held back until the read finishes.
+        var read = clamp(local, 0, extra);
+
+        // Slide-out: card i is covered by card i+1 only AFTER its read is
+        // done — as st moves from (start+extra) through (start+extra+vh).
+        var pOut = clamp((local - extra) / vh, 0, 1);
+
+        card.style.transform =
+          'translateX(' + ((1 - pIn) * 102) + '%) scale(' + (1 - 0.07 * pOut) + ')';
+        card.style.boxShadow = (pIn > 0 && pIn < 1)
+          ? '-30px 0 60px rgba(24, 53, 31, .4)' : 'none';
+
+        var inner = inners[i];
+        if (inner) inner.style.transform = read > 0 ? 'translateY(' + (-read) + 'px)' : '';
+
+        dims[i].style.opacity = (pOut * 0.35).toFixed(3);
+      }
+
+      // Active dot = card whose budget currently contains st.
+      var active = 0;
+      for (var k = 0; k < starts.length; k++) {
+        var end = (k + 1 < starts.length) ? starts[k + 1] : Infinity;
+        if (st >= starts[k] && st < end) { active = k; break; }
+        if (st >= starts[k]) active = k;
+      }
+      for (var j = 0; j < dots.length; j++) {
+        dots[j].classList.toggle('is-active', j === active);
+      }
+
+      if (cue) cue.classList.toggle('is-hidden', st > 40);
+    }
+
+    function onScroll() {
+      if (rafPending) return;
+      rafPending = true;
+      requestAnimationFrame(update);
+    }
+
+    function sync() {
+      if (mq.matches && !rm.matches) build();
+      else teardown();
+    }
+
+    // matchMedia change listeners (addEventListener where supported).
+    if (mq.addEventListener) { mq.addEventListener('change', sync); rm.addEventListener('change', sync); }
+    else { mq.addListener(sync); rm.addListener(sync); }
+    var resizeT;
+    window.addEventListener('resize', function () {
+      if (!built) return;
+      clearTimeout(resizeT);
+      resizeT = setTimeout(function () { measure(); update(); }, 120);
+    }, { passive: true });
+
+    sync();
+  })();
+
 })();

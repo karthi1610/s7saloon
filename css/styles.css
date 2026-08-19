@@ -49,6 +49,7 @@
   --f-body:    'Jost', 'Helvetica Neue', Arial, sans-serif;
 
   /* Rhythm */
+  --card-head-h: 68px;   /* mobile card-stack per-card header strip */
   --pad-x:     clamp(20px, 5vw, 48px);
   --sec-y:     clamp(70px, 9vw, 110px);
   --ease:      cubic-bezier(.22, 1, .36, 1);
@@ -1268,3 +1269,231 @@ a.contact__val:hover,
 .field input,
 .field select,
 .field textarea        { color-scheme: light; }
+
+/* ══ MOBILE CARD-STACK ══════════════════════════════════════════════
+   Scroll-driven horizontal card stack for narrow viewports only.
+   Everything here is gated behind (max-width: 860px). Desktop keeps the
+   normal vertical layout and the fixed nav, untouched. Reduced-motion
+   users get plain vertical scroll (rules live in the reduced-motion
+   block below). Structure injected by main.js:
+     .cardstack  (tall scroll driver, height = N × 100svh)
+       .cardstack__stage  (sticky, 100svh, overflow hidden)
+         .card  ×N  (absolute inset:0, DOM order = z-index)
+           .card__head  (per-card header strip)
+           .card__dim   (cover/dim overlay)
+           <section>    (the original section, moved in by JS)
+   ─────────────────────────────────────────────────────────────────── */
+@media (max-width: 860px) {
+  html.cardstack-on { scroll-behavior: auto; }
+  /* The base stylesheet sets overflow-x:hidden on <body>. That turns body
+     into a scroll container, which makes the sticky stage stick to the body
+     scrollport rather than the viewport — cards then land a viewport too high.
+     Override body back to visible and clip horizontally on <html> instead. */
+  html.cardstack-on { overflow-x: hidden; }
+  html.cardstack-on body { overflow-x: visible; }
+
+  /* Each card carries its own header strip, so hide the fixed nav BAR —
+     but keep .nav itself displayed so its child .nav__menu can still open
+     as a full-width overlay when a card toggle is tapped. We collapse the
+     bar to zero height and hide the brand/toggle instead of display:none
+     (which would also kill the menu). */
+  html.cardstack-on .nav {
+    background: none; border: 0; padding: 0; height: 0; pointer-events: none;
+  }
+  html.cardstack-on .nav__brand,
+  html.cardstack-on .nav > .nav__toggle { display: none; }
+  html.cardstack-on .nav__menu { pointer-events: auto; }
+
+  .cardstack { position: relative; width: 100%; }
+
+  .cardstack__stage {
+    position: sticky; top: 0;
+    height: 100svh; width: 100%;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  .card {
+    position: absolute; inset: 0;
+    overflow: hidden;
+    background: var(--bg);
+    transform: translateX(102%);
+    will-change: transform;
+    backface-visibility: hidden;
+  }
+  /* First card starts in place; JS keeps it there. */
+  .card:first-child { transform: none; }
+
+  /* The moved-in section fills the card. Cards that fit a viewport don't
+     scroll. Cards taller than the viewport (.card--scroll, flagged by JS)
+     scroll their content natively — and deliberately WITHOUT
+     overscroll-behavior:contain, so when the finger reaches the card's top
+     or bottom edge the scroll CHAINS to the window and the next/prev card
+     stacks in. One continuous gesture reads a card, then advances.
+     Top padding clears the header strip (incl. safe-area). */
+  /* Sections clip their overflow. For tall cards, an inner wrapper
+     (.card__inner, added by main.js) is translated upward as the window
+     scrolls — driven by the single window scroll axis, so a finger swipe
+     always advances the stack and never gets trapped in an inner scroller.
+     Short cards center their content; no wrapper translate is applied. */
+  .card > section,
+  .card > .hero {
+    position: absolute; inset: 0;
+    height: 100svh; min-height: 0;
+    margin: 0;
+    overflow: hidden;
+    padding-top: calc(var(--card-head-h) + env(safe-area-inset-top, 0px) + 28px);
+    padding-bottom: 28px;
+    scrollbar-width: none;
+  }
+  .card:not(.card--scroll):not(.card--hero) > section {
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  .card__inner { will-change: transform; }
+  .card > section::-webkit-scrollbar,
+  .card > .hero::-webkit-scrollbar { display: none; }
+
+  /* Hero is a full-bleed image card — no header offset pushing it down,
+     the header sits transparently on top of it instead. */
+  .card--hero > .hero {
+    padding-top: 0;
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ── Per-card header strip ──────────────────────────────────────── */
+  .card__head {
+    position: absolute; inset: 0 0 auto 0; z-index: 20;
+    display: flex; align-items: center; justify-content: space-between;
+    height: var(--card-head-h);
+    padding: env(safe-area-inset-top, 0px) var(--pad-x) 0;
+    padding-inline: var(--pad-x);
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .card--hero .card__head {
+    background: linear-gradient(rgba(16, 34, 20, .8), transparent);
+    border-bottom: 0;
+  }
+  .card__brand img { height: 40px; width: auto; display: block; }
+  /* Hero uses the light logo on the dark gradient. */
+  .card--hero .card__brand .card__brand-dark { display: none; }
+  .card:not(.card--hero) .card__brand .card__brand-light { display: none; }
+
+  .card__toggle {
+    width: 44px; height: 44px; padding: 0;
+    background: transparent; border: 1px solid var(--line-mid);
+    cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  }
+  .card--hero .card__toggle { border-color: rgba(229, 238, 206, .5); }
+  .card__toggle .nav__bar { background: var(--text); }
+  .card--hero .card__toggle .nav__bar { background: var(--on-dark); }
+  .card__toggle[aria-expanded="true"] .nav__bar:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+  .card__toggle[aria-expanded="true"] .nav__bar:nth-child(2) { opacity: 0; }
+  .card__toggle[aria-expanded="true"] .nav__bar:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+
+  /* ── Dim / cover overlay ────────────────────────────────────────── */
+  .card__dim {
+    position: absolute; inset: 0; z-index: 15;
+    background: var(--text);
+    opacity: 0; pointer-events: none;
+  }
+
+  /* ── Progress dots ──────────────────────────────────────────────── */
+  .cardstack__dots {
+    position: fixed; z-index: 90;
+    right: 10px; top: 50%; transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 12px;
+    pointer-events: none;
+  }
+  .cardstack__dots i {
+    display: block; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--line-str);
+    transition: transform .3s var(--ease), background .3s var(--ease);
+  }
+  .cardstack__dots i.is-active {
+    background: var(--gold);
+    transform: scale(1.4);
+  }
+
+  /* ── Scroll cue: first card only, fades on scroll ───────────────── */
+  .cardstack-on .hero__cue { display: flex; }
+  .cardstack-on .hero__cue.is-hidden { opacity: 0; }
+
+  /* ── Fit-to-viewport compaction (card mode only) ─────────────────────
+     Cards that must sit in a single 100svh card get their vertical rhythm
+     tightened so nothing clips and no internal scroll is needed. Tall
+     cards (about, pricing) keep their full height and scroll internally
+     via .card--scroll. These rules are scoped to .cardstack-on so normal
+     mobile (reduced-motion / >860px) is untouched. */
+  .cardstack-on .card > section { padding-bottom: 20px; }
+
+  /* Services: small 2-column tiles so all 7 fit compactly. Icon + label
+     only — the description line is dropped on the card to save height. */
+  .cardstack-on .card--services .section-head { margin-bottom: 12px; }
+  .cardstack-on .card--services .services__grid { grid-template-columns: repeat(2, 1fr); gap: 0; }
+  .cardstack-on .card--services .service:nth-child(5) { grid-column: 1 / span 1; }
+  .cardstack-on .card--services .service:nth-child(6) { grid-column: 2 / span 1; }
+  .cardstack-on .card--services .service:nth-child(7) { grid-column: 1 / span 2; }
+  .cardstack-on .card--services .service__link { padding: 14px 10px; }
+  .cardstack-on .card--services .service__icon { width: 34px; height: 34px; margin: 0 auto 8px; }
+  .cardstack-on .card--services .service__icon svg { width: 18px; height: 18px; }
+  .cardstack-on .card--services .service h3 { font-size: 12px; letter-spacing: .1em; margin: 0; }
+  .cardstack-on .card--services .service p { display: none; }
+
+  /* Merged story block appended into the services card on mobile. */
+  .cardstack-on .services__story {
+    margin-top: 22px; padding-top: 22px;
+    border-top: 1px solid var(--line);
+  }
+  .cardstack-on .services__story .eyebrow { margin-bottom: 8px; }
+  .cardstack-on .services__story h2 { font-size: clamp(26px, 8vw, 34px); margin: 0 0 12px; }
+  .cardstack-on .services__story p { font-size: 13px; line-height: 1.55; margin: 0 0 10px; }
+  .cardstack-on .services__story .about__cta { margin-top: 14px; }
+
+  /* Remove Why-choose-us & Achievements from the mobile card view. The
+     whole About card is dropped from the stack (see main.js); these rules
+     also hide the sub-blocks in case the section is ever shown. */
+  .cardstack-on .about__why,
+  .cardstack-on .about__achievements { display: none; }
+
+  /* The card stack ends at the Contact card. Everything the stack doesn't
+     turn into a card still sits in normal flow AFTER the stack — the
+     decorative service marquee, the leftover About/Our-Story section (its
+     story is already merged into the Services card), the quotes block and
+     the tilted Instagram wall. Hide them all on mobile so scrolling past
+     Contact doesn't reveal a long tail of stray content. */
+  .cardstack-on > body .marquee,
+  html.cardstack-on .marquee,
+  html.cardstack-on #about,
+  html.cardstack-on .quotes,
+  html.cardstack-on .ig-wall { display: none; }
+
+  /* Gallery: cap the grid to the available height and let it breathe. */
+  .cardstack-on .card--gallery .gallery__head { margin-bottom: 14px; }
+  .cardstack-on .card--gallery .gallery__grid { columns: 2; column-gap: 10px; }
+  .cardstack-on .card--gallery .g { margin-bottom: 10px; }
+
+  /* Booking: compress the copy block and form gaps. */
+  .cardstack-on .card--book .book__grid { gap: 18px; }
+  .cardstack-on .card--book .book__lede { margin-bottom: 12px; }
+  .cardstack-on .card--book .book__perks { gap: 8px; margin-bottom: 4px; }
+  .cardstack-on .card--book .form__grid { gap: 14px; }
+
+  /* Contact: tighten the blocks + map. */
+  .cardstack-on .card--contact .contact__grid { gap: 20px; }
+  .cardstack-on .card--contact .contact__blocks { gap: 16px; }
+  .cardstack-on .card--contact .contact__map iframe { height: 240px; }
+}
+
+/* Reduced motion: no card effect at all — plain vertical scroll. The
+   JS never builds the stack, but if these classes ever appear, neutralise
+   them so nothing is left translated off-screen or dimmed. */
+@media (max-width: 860px) and (prefers-reduced-motion: reduce) {
+  .card { position: relative; transform: none !important; inset: auto; }
+  .card > section, .card > .hero { position: relative; height: auto; inset: auto; padding-top: 0; overflow: visible; }
+  .cardstack__stage { position: static; height: auto; overflow: visible; }
+  .card__head { position: sticky; }
+  .card__dim, .cardstack__dots { display: none; }
+}
