@@ -735,6 +735,12 @@ h2 em { font-style: italic; color: var(--gold-2); }
   color: rgba(224,188,63,.45); margin-bottom: 8px;
 }
 .quotes__body { margin: 0; }
+.quotes__stars {
+  display: flex; gap: 5px; margin-bottom: 20px;
+}
+.quotes__stars svg {
+  width: 20px; height: 20px; fill: var(--gold); flex: none;
+}
 .quotes__text {
   min-height: 120px;
   font-family: var(--f-display); font-size: clamp(22px, 3.6vw, 32px);
@@ -978,7 +984,7 @@ a.contact__val:hover { color: var(--gold-2); }
   overflow: hidden; border: 1px solid var(--line-mid);
 }
 .ig-wall__tile {
-  display: block; opacity: .88; cursor: pointer;
+  display: block; opacity: 1; cursor: pointer;
   transition: opacity .25s, border-color .25s;
 }
 .ig-wall__tile:hover, .ig-wall__tile:focus-visible { opacity: 1; border-color: var(--gold); }
@@ -988,8 +994,10 @@ a.contact__val:hover { color: var(--gold-2); }
 
 .ig-wall__scrim {
   position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(ellipse 70% 80% at 30% 55%,
-    rgba(216,234,188,.97) 20%, rgba(216,234,188,.70) 55%, rgba(216,234,188,.22));
+  /* Lighter scrim: photos read clearly, with just enough veil at the
+     bottom-left to keep the "The work speaks" copy legible. */
+  background: radial-gradient(ellipse 65% 75% at 28% 62%,
+    rgba(216,234,188,.72) 0%, rgba(216,234,188,.34) 45%, rgba(216,234,188,0) 72%);
 }
 
 .ig-wall__copy {
@@ -1308,7 +1316,7 @@ a.contact__val:hover,
 
   .cardstack__stage {
     position: sticky; top: 0;
-    height: 100svh; width: 100%;
+    height: var(--stage-h, 100dvh); width: 100%;
     overflow: hidden;
     background: var(--bg);
   }
@@ -1339,7 +1347,7 @@ a.contact__val:hover,
   .card > section,
   .card > .hero {
     position: absolute; inset: 0;
-    height: 100svh; min-height: 0;
+    height: var(--stage-h, 100dvh); min-height: 0;
     margin: 0;
     overflow: hidden;
     padding-top: calc(var(--card-head-h) + env(safe-area-inset-top, 0px) + 28px);
@@ -1467,8 +1475,22 @@ a.contact__val:hover,
   .cardstack-on > body .marquee,
   html.cardstack-on .marquee,
   html.cardstack-on #about,
-  html.cardstack-on .quotes,
-  html.cardstack-on .ig-wall { display: none; }
+  html.cardstack-on .quotes:not(.quotes--incard),
+  html.cardstack-on .ig-wall:not(.ig-wall--incard) { display: none; }
+
+  /* Reviews moved into the Contact card, between the map and the IG wall. */
+  .cardstack-on .quotes--incard {
+    display: block; padding: 0; margin: 28px 0 0;
+    padding-top: 24px; border-top: 1px solid var(--line);
+    min-height: 0;
+  }
+  .cardstack-on .quotes--incard .quotes__mark { font-size: 72px; margin-bottom: 2px; }
+  .cardstack-on .quotes--incard .quotes__stars { margin-bottom: 14px; }
+  .cardstack-on .quotes--incard .quotes__text {
+    min-height: 0; font-size: 17px; line-height: 1.55;
+  }
+  .cardstack-on .quotes--incard .quotes__name { margin-top: 16px; }
+  .cardstack-on .quotes--incard .quotes__dots { margin-top: 22px; }
 
   /* Gallery: cap the grid to the available height and let it breathe. */
   .cardstack-on .card--gallery .gallery__head { margin-bottom: 14px; }
@@ -1485,6 +1507,25 @@ a.contact__val:hover,
   .cardstack-on .card--contact .contact__grid { gap: 20px; }
   .cardstack-on .card--contact .contact__blocks { gap: 16px; }
   .cardstack-on .card--contact .contact__map iframe { height: 240px; }
+
+  /* Instagram wall cloned into the Contact card, below the map (mobile).
+     Same tilted 3D plane as web, sized to sit inside the card. */
+  .cardstack-on .ig-wall--incard {
+    display: block; position: relative;
+    height: 460px; margin: 28px 0 0;
+    border-top: 1px solid var(--line);
+    border-radius: 0;
+  }
+  .cardstack-on .ig-wall--incard .ig-wall__tile,
+  .cardstack-on .ig-wall--incard .ig-wall__blank {
+    width: 150px; height: 150px;
+  }
+  .cardstack-on .ig-wall--incard .ig-wall__plane { gap: 14px; }
+  .cardstack-on .ig-wall--incard .ig-wall__col { gap: 14px; }
+  .cardstack-on .ig-wall--incard .ig-wall__copy {
+    left: 20px; bottom: 40px; max-width: 300px; gap: 16px;
+  }
+  .cardstack-on .ig-wall--incard .ig-wall__headline { font-size: 30px; }
 }
 
 /* Reduced motion: no card effect at all — plain vertical scroll. The

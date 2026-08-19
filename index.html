@@ -61,10 +61,18 @@
       </div>
     </div>
     <div class="hero__slide">
-      <div class="img-slot" data-label="Hero photo 2 — storefront, street view">
+      <div class="img-slot" data-label="Hero photo 2 — full storefront at night">
         <picture>
           <source media="(max-width: 860px)" srcset="images/hero-2-mobile.jpg">
-          <img src="images/hero-2.jpg" alt="Studie'o7 Signature Lounge frontage lit up along Avinashi Road" loading="lazy">
+          <img src="images/hero-2.jpg" alt="Studie'o7 Signature Lounge full frontage lit up at night with the Fresh Bite Cafe and 07 Outlets signage" loading="lazy">
+        </picture>
+      </div>
+    </div>
+    <div class="hero__slide">
+      <div class="img-slot" data-label="Hero photo 3 — storefront by day">
+        <picture>
+          <source media="(max-width: 860px)" srcset="images/hero-1-mobile.jpg">
+          <img src="images/hero-3.jpg" alt="Studie'o7 Signature Lounge building by day, with the Gravity Sports Centre and 07 Outlets signage" loading="lazy">
         </picture>
       </div>
     </div>
@@ -73,6 +81,7 @@
   <div class="hero__dots" role="tablist" aria-label="Hero images">
     <button type="button" role="tab" aria-label="Show hero image 1" aria-selected="true"></button>
     <button type="button" role="tab" aria-label="Show hero image 2" aria-selected="false"></button>
+    <button type="button" role="tab" aria-label="Show hero image 3" aria-selected="false"></button>
   </div>
 
   <div class="hero__vignette" aria-hidden="true"></div>
@@ -355,17 +364,25 @@
 </section>
 
 <!-- ══ TESTIMONIALS ══════════════════════════════════════════════════ -->
-<section class="quotes" aria-label="Client testimonials">
+<section class="quotes" id="reviews" aria-label="Client testimonials">
   <div data-rv>
     <p class="quotes__mark" aria-hidden="true">“</p>
+    <div class="quotes__stars" id="q-stars" aria-label="5 out of 5 stars">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.6l2.47 5.01 5.53.8-4 3.9.94 5.5L10 14.2l-4.95 2.6.94-5.5-4-3.9 5.53-.8z"/></svg>
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.6l2.47 5.01 5.53.8-4 3.9.94 5.5L10 14.2l-4.95 2.6.94-5.5-4-3.9 5.53-.8z"/></svg>
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.6l2.47 5.01 5.53.8-4 3.9.94 5.5L10 14.2l-4.95 2.6.94-5.5-4-3.9 5.53-.8z"/></svg>
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.6l2.47 5.01 5.53.8-4 3.9.94 5.5L10 14.2l-4.95 2.6.94-5.5-4-3.9 5.53-.8z"/></svg>
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.6l2.47 5.01 5.53.8-4 3.9.94 5.5L10 14.2l-4.95 2.6.94-5.5-4-3.9 5.53-.8z"/></svg>
+    </div>
     <blockquote class="quotes__body" aria-live="polite">
-      <p class="quotes__text" id="q-text">I walked in for a trim and walked out feeling like a magazine cover. The attention to detail here is unreal.</p>
-      <footer class="quotes__name" id="q-name">Ananya R · regular since 2021</footer>
+      <p class="quotes__text" id="q-text">Had a great experience at Studio 7 Signature Lounge! The haircut was really good, and the staff were friendly, professional, and attentive.</p>
+      <footer class="quotes__name" id="q-name">Ajay B</footer>
     </blockquote>
     <div class="quotes__dots">
       <button type="button" class="is-active" aria-label="Show testimonial 1"></button>
       <button type="button" aria-label="Show testimonial 2"></button>
       <button type="button" aria-label="Show testimonial 3"></button>
+      <button type="button" aria-label="Show testimonial 4"></button>
     </div>
   </div>
 </section>
@@ -425,11 +442,11 @@
           </div>
           <div class="field">
             <label for="f-date">Date</label>
-            <input id="f-date" name="date" type="date">
+            <input id="f-date" name="date" type="date" required>
           </div>
           <div class="field">
             <label for="f-time">Time</label>
-            <input id="f-time" name="time" type="time">
+            <input id="f-time" name="time" type="time" required>
           </div>
           <div class="field field--full">
             <label for="f-notes">Notes (optional)</label>

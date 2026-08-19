@@ -149,9 +149,10 @@
     if (!section || !textEl || !nameEl) return;
 
     var items = [
-      { q: 'I walked in for a trim and walked out feeling like a magazine cover. The attention to detail here is unreal.', n: 'Ananya R · regular since 2021' },
-      { q: 'Best beard sculpt in the city, hands down. They actually listen before they touch the scissors.',              n: 'Karthik M · groom, 2025' },
-      { q: 'My bridal trial felt like a spa day. Calm, unhurried, and the result lasted 14 hours of wedding chaos.',       n: 'Shreya & Dev · wedding party' }
+      { q: 'Had a great experience at Studio 7 Signature Lounge! The haircut was really good, and the staff were friendly, professional, and attentive. Loved the overall service and the clean, premium atmosphere. Definitely a place I\u2019d recommend for a quality haircut and grooming experience. Will definitely visit again!', n: 'Ajay B' },
+      { q: 'The service was very awesome. I recently visited Studieo7 Signature Lounge Hopes and it was a great experience for me. Thank you Viji for this beautiful hairstyle. It\u2019s very beautiful and I really loved it.', n: 'Archana' },
+      { q: 'Had an amazing experience at Studio7! Dass was my hairstylist and he was so patient, friendly, and really understood exactly what I wanted. The service was top-notch and the whole vibe was welcoming. Highly recommend Studio7!', n: 'Nandhini Murugesan' },
+      { q: 'Service was awesome, I got a haircut by Das \u2014 very humble and good approach. Totally love it.', n: 'Shaki Pico Pritty' }
     ];
 
     var idx = 0, timer = null;
@@ -447,16 +448,24 @@
 
       var nameEl  = $('#f-name');
       var phoneEl = $('#f-phone');
+      var dateEl  = $('#f-date');
+      var timeEl  = $('#f-time');
       var name    = nameEl.value.trim();
       var phone   = phoneEl.value.trim();
 
-      if (!name)  { fail('Please add your name and phone number.', nameEl);  return; }
-      if (!phone) { fail('Please add your name and phone number.', phoneEl); return; }
-      // Indian mobile numbers are 10 digits; allow +91, spaces and dashes.
-      if (phone.replace(/[^0-9]/g, '').length < 10) {
-        fail('That phone number looks incomplete — please check it.', phoneEl);
+      if (!name) { fail('Please enter your name.', nameEl); return; }
+
+      if (!phone) { fail('Please enter your phone number.', phoneEl); return; }
+      // Indian mobile numbers are exactly 10 digits. Strip spaces, dashes and
+      // an optional +91 / 91 / 0 prefix, then require exactly 10 digits left.
+      var digits = phone.replace(/[^0-9]/g, '').replace(/^(?:91|0)/, '');
+      if (digits.length !== 10) {
+        fail('Please enter a valid 10-digit phone number.', phoneEl);
         return;
       }
+
+      if (!dateEl.value) { fail('Please choose a date.', dateEl); return; }
+      if (!timeEl.value) { fail('Please choose a time.', timeEl); return; }
 
       // Honeypot: a real person never sees this field, so a value means a bot.
       // Show the normal success state so the bot learns nothing, but send nothing.
@@ -1204,12 +1213,21 @@
     var main = $('#main');
     if (!main) return;
 
+    // Extra scroll (px) a card holds fully in place AFTER its content is read
+    // and BEFORE the next card starts sliding in. Higher = more delay before
+    // the next section arrives. Purely a scroll-runway value; it never changes
+    // any card or section height.
+    var DWELL = 420;
+
     var built = false;
     var stack, stage, cards = [], dims = [], dots = [], dotsWrap;
     var cue = $('.hero__cue');
     var rafPending = false;
     var placeholders = [];   // comment nodes marking original positions
     var storyNode = null;    // "Our story" block cloned into the services card
+    var igNode = null;       // Instagram grid appended to the contact card
+    var reviewsNode = null;  // reviews section moved into the contact card
+    var reviewsMark = null;  // placeholder for the reviews' original spot
     var stackTop = 0;        // document offset of the stack's top edge
     var vhCache = 0;
     var starts = [];         // scroll offset (px) where each card's budget begins
@@ -1302,6 +1320,69 @@
       storyNode = null;
     }
 
+    // Move the real reviews (.quotes) section into the Contact card, between
+    // the map and the Instagram wall. We MOVE (not clone) so the existing
+    // testimonial carousel JS — which targets #q-text/#q-name by id — keeps
+    // driving it. A placeholder marks its original spot for teardown.
+    function mergeReviews() {
+      var contactCard = null;
+      for (var i = 0; i < cards.length; i++) {
+        if (cards[i].classList.contains('card--contact')) { contactCard = cards[i]; break; }
+      }
+      var quotes = document.getElementById('reviews');
+      if (!contactCard || !quotes) return;
+      var sec = contactCard.querySelector(':scope > section');
+      if (!sec) return;
+      var inner = sec.querySelector(':scope > .card__inner') || sec;
+
+      reviewsMark = document.createComment('reviews-home');
+      quotes.parentNode.insertBefore(reviewsMark, quotes);
+      quotes.classList.add('quotes--incard');
+      inner.appendChild(quotes);         // sits after the map; IG appended next
+      reviewsNode = quotes;
+    }
+
+    function unmergeReviews() {
+      if (reviewsNode && reviewsMark && reviewsMark.parentNode) {
+        reviewsNode.classList.remove('quotes--incard');
+        reviewsMark.parentNode.insertBefore(reviewsNode, reviewsMark);
+        reviewsMark.parentNode.removeChild(reviewsMark);
+      }
+      reviewsNode = null; reviewsMark = null;
+    }
+
+    // Append the real tilted Instagram wall (the 3D drifting plane, scrim and
+    // copy — same as web) to the bottom of the Contact card, below the map.
+    // We clone the actual .ig-wall so mobile matches the desktop treatment
+    // exactly. The original .ig-wall stays hidden on mobile via CSS.
+    function mergeInstagram() {
+      var contactCard = null;
+      for (var i = 0; i < cards.length; i++) {
+        if (cards[i].classList.contains('card--contact')) { contactCard = cards[i]; break; }
+      }
+      var wall = document.querySelector('.ig-wall');
+      if (!contactCard || !wall) return;
+      var sec = contactCard.querySelector(':scope > section');
+      if (!sec) return;
+
+      // Deep-clone the whole IG wall and mark the clone so mobile CSS can
+      // size it to sit inside the card.
+      var clone = wall.cloneNode(true);
+      clone.classList.add('ig-wall--incard');
+      clone.removeAttribute('id');
+      // Avoid duplicate ids inside the clone (e.g. #ig-h on the handle).
+      clone.querySelectorAll('[id]').forEach(function (n) { n.removeAttribute('id'); });
+
+      var inner = sec.querySelector(':scope > .card__inner') || sec;
+      inner.appendChild(clone);
+      igNode = clone;
+    }
+
+    function unmergeInstagram() {
+      if (igNode && igNode.parentNode) igNode.parentNode.removeChild(igNode);
+      igNode = null;
+    }
+
     function build() {
       if (built) return;
 
@@ -1353,6 +1434,9 @@
         sec.appendChild(inner);
       });
 
+      mergeReviews();     // reviews between the map and the Instagram wall
+      mergeInstagram();   // Instagram wall at the very bottom of Contact
+
       // Insert the stack where the hero used to be (first placeholder).
       var firstMark = placeholders[0].mark;
       firstMark.parentNode.insertBefore(stack, firstMark);
@@ -1398,6 +1482,8 @@
       document.removeEventListener('click', onAnchorClick, true);
 
       unmergeStory();
+      unmergeReviews();
+      unmergeInstagram();
 
       // Move each section back to its original spot, then drop the scaffold.
       placeholders.forEach(function (p) {
@@ -1416,6 +1502,7 @@
       if (dotsWrap && dotsWrap.parentNode) dotsWrap.parentNode.removeChild(dotsWrap);
 
       document.documentElement.classList.remove('cardstack-on');
+      document.documentElement.style.removeProperty('--stage-h');
       cards = []; dims = []; dots = []; placeholders = [];
       starts = []; extras = []; inners = [];
       built = false;
@@ -1430,7 +1517,18 @@
     // lists all lay out correctly. Guarantees the next section never appears
     // until the current one is fully scrolled — same in reverse. Sets height.
     function measure() {
-      var vh = window.innerHeight || document.documentElement.clientHeight;
+      // Single source of truth for card height: the sticky stage's actual
+      // rendered height. On mobile, window.innerHeight fluctuates with the
+      // URL bar while CSS 100svh is the *small* viewport, so the two disagree
+      // and leave a gap at the bottom of each card. We instead read the real
+      // stage height and pin it as --stage-h so every card, and the scroll
+      // budget below, use the exact same pixel value — no gap in any URL-bar
+      // state. Temporarily clear the pin so the stage resolves its natural
+      // (100svh) height first, then lock it in.
+      document.documentElement.style.removeProperty('--stage-h');
+      var vh = Math.round(stage.getBoundingClientRect().height) ||
+               window.innerHeight || document.documentElement.clientHeight;
+      document.documentElement.style.setProperty('--stage-h', vh + 'px');
       vhCache = vh;
       starts = []; extras = []; inners = [];
 
@@ -1441,12 +1539,10 @@
         var extra = 0;
         if (sec) {
           if (wrap) wrap.style.transform = '';   // reset before measuring
-          // Available content area = viewport minus the section's top/bottom
-          // padding (header clearance + bottom gap).
           var cs = window.getComputedStyle(sec);
           var padT = parseFloat(cs.paddingTop) || 0;
           var padB = parseFloat(cs.paddingBottom) || 0;
-          var avail = sec.clientHeight - padT - padB;
+          var avail = vh - padT - padB;
           var contentH = wrap ? wrap.scrollHeight : (sec.scrollHeight - padT - padB);
           extra = Math.max(0, Math.round(contentH - avail));
           if (extra < 24) extra = 0;
@@ -1455,7 +1551,11 @@
         inners.push(wrap || null);
         extras.push(extra);
         starts.push(acc);
-        acc += vh + extra;
+        // Budget per card = read distance (extra) + a fixed DWELL where the
+        // card sits fully in place before the next one begins sliding in.
+        // DWELL delays the next section without touching any card/section
+        // height — it only lengthens the scroll runway.
+        acc += vh + extra + DWELL;
       }
       stack.style.height = (acc + vh) + 'px';
       stackTop = stack.getBoundingClientRect().top + (window.pageYOffset || 0);
@@ -1501,6 +1601,20 @@
 
     function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
 
+    // Reveal a card's [data-rv] elements with their staggered delay. Used by
+    // the stack because the page's IntersectionObserver can't see elements
+    // inside off-screen (translated) cards.
+    function revealCard(card) {
+      var els = card.querySelectorAll('[data-rv]');
+      for (var i = 0; i < els.length; i++) {
+        (function (el) {
+          if (el.classList.contains('is-revealed')) return;
+          var delay = rm.matches ? 0 : (parseInt(el.getAttribute('data-rv-delay') || '0', 10) || 0);
+          setTimeout(function () { el.classList.add('is-revealed'); }, delay);
+        })(els[i]);
+      }
+    }
+
     function update() {
       rafPending = false;
       if (!built) return;
@@ -1524,14 +1638,24 @@
         // next card is held back until the read finishes.
         var read = clamp(local, 0, extra);
 
-        // Slide-out: card i is covered by card i+1 only AFTER its read is
-        // done — as st moves from (start+extra) through (start+extra+vh).
-        var pOut = clamp((local - extra) / vh, 0, 1);
+        // Slide-out: after the read, the card HOLDS in place for DWELL px
+        // (nothing moves), THEN card i+1 begins sliding in over the following
+        // viewport. So the cover progress starts at (extra + DWELL).
+        var pOut = clamp((local - extra - DWELL) / vh, 0, 1);
 
         card.style.transform =
           'translateX(' + ((1 - pIn) * 102) + '%) scale(' + (1 - 0.07 * pOut) + ')';
         card.style.boxShadow = (pIn > 0 && pIn < 1)
           ? '-30px 0 60px rgba(24, 53, 31, .4)' : 'none';
+
+        // Play each card's staggered data-rv reveal as it slides into view.
+        // The global IntersectionObserver can't see these — the cards are
+        // translated off-screen, so intersection never fires — so the card
+        // stack drives the reveal itself, once, when the card is ~40% in.
+        if (pIn > 0.4 && !card._revealed) {
+          card._revealed = true;
+          revealCard(card);
+        }
 
         var inner = inners[i];
         if (inner) inner.style.transform = read > 0 ? 'translateY(' + (-read) + 'px)' : '';
@@ -1567,12 +1691,26 @@
     // matchMedia change listeners (addEventListener where supported).
     if (mq.addEventListener) { mq.addEventListener('change', sync); rm.addEventListener('change', sync); }
     else { mq.addListener(sync); rm.addListener(sync); }
-    var resizeT;
+    // Re-measure on genuine layout changes (orientation / width), but ignore
+    // the constant height jitter mobile browsers emit as the URL bar shows and
+    // hides — re-pinning --stage-h on every one of those would make the cards
+    // visibly jump. Width is stable across URL-bar changes, so we key off it.
+    var resizeT, lastW = window.innerWidth;
     window.addEventListener('resize', function () {
       if (!built) return;
+      var w = window.innerWidth;
+      if (w === lastW) return;   // height-only change (URL bar) → ignore
+      lastW = w;
       clearTimeout(resizeT);
       resizeT = setTimeout(function () { measure(); update(); }, 120);
     }, { passive: true });
+
+    // Orientation change does need a re-measure even though width may settle
+    // asynchronously — handle it explicitly after the viewport stabilises.
+    window.addEventListener('orientationchange', function () {
+      if (!built) return;
+      setTimeout(function () { lastW = window.innerWidth; measure(); update(); }, 250);
+    });
 
     sync();
   })();
