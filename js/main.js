@@ -157,6 +157,22 @@
 
     var idx = 0, timer = null;
 
+    // Reserve height for the TALLEST review so rotating between a 2-line and a
+    // 5-line quote never changes the section height (which would shove the
+    // booking form below it up and down — the "jerk"). Measured from the live
+    // element so it's correct at any viewport width, and re-run on resize.
+    function lockHeight() {
+      textEl.style.minHeight = '0px';
+      var prev = textEl.textContent;
+      var tallest = 0;
+      items.forEach(function (it) {
+        textEl.textContent = it.q;
+        if (textEl.offsetHeight > tallest) tallest = textEl.offsetHeight;
+      });
+      textEl.textContent = prev;
+      textEl.style.minHeight = tallest + 'px';
+    }
+
     function paint(i) {
       idx = (i + items.length) % items.length;
       textEl.textContent = items[idx].q;
@@ -187,8 +203,15 @@
       document.hidden ? stop() : start();
     });
 
+    lockHeight();
     paint(0);
     start();
+
+    var rzTimer = null;
+    window.addEventListener('resize', function () {
+      clearTimeout(rzTimer);
+      rzTimer = setTimeout(lockHeight, 200);
+    });
   })();
 
   /* ── Booking form: who's-this-for filter + services dropdown ─────── */
@@ -198,8 +221,10 @@
     var btn       = $('#f-services-btn');
     var btnText   = $('#f-services-btn-text');
     var panel     = $('#f-services-panel');
+    var list      = $('#f-services-list');
+    var applyBtn  = $('#f-services-apply');
     var hiddenVal = $('#f-services-value');
-    if (!forGroup || !wrap || !btn || !panel) return;
+    if (!forGroup || !wrap || !btn || !panel || !list) return;
 
     var forInputs = $$('input[type="radio"]', forGroup);
 
@@ -236,7 +261,15 @@
         btnText.textContent = 'Select services';
         btnText.classList.add('is-placeholder');
       } else {
-        btnText.textContent = selected.join(', ');
+        // Cap the visible chips so picking many services can't grow the button
+        // onto multiple lines. Show the first two, then "+N".
+        var MAX = 2;
+        if (selected.length <= MAX) {
+          btnText.textContent = selected.join(', ');
+        } else {
+          btnText.textContent = selected.slice(0, MAX).join(', ') +
+            ' +' + (selected.length - MAX);
+        }
         btnText.classList.remove('is-placeholder');
       }
       hiddenVal.value = selected.join(', ');
@@ -244,11 +277,11 @@
 
     function renderPanel() {
       var who = currentFor();
-      var list = CATEGORIES[who];
-      selected = selected.filter(function (s) { return list.indexOf(s) > -1; });
+      var catNames = CATEGORIES[who];
+      selected = selected.filter(function (s) { return catNames.indexOf(s) > -1; });
 
-      panel.innerHTML = '';
-      list.forEach(function (cat) {
+      list.innerHTML = '';
+      catNames.forEach(function (cat) {
         var opt = document.createElement('button');
         opt.type = 'button';
         opt.className = 'msel__opt';
@@ -262,7 +295,7 @@
           opt.setAttribute('aria-selected', String(idx === -1));
           updateButtonText();
         });
-        panel.appendChild(opt);
+        list.appendChild(opt);
       });
       updateButtonText();
     }
@@ -279,7 +312,16 @@
     btn.addEventListener('click', function () {
       if (panel.hidden) { openPanel(); } else { closePanel(); }
     });
-    document.addEventListener('click', function (e) {
+    // Apply is an explicit "done" — selections already applied live, so it
+    // just closes the panel and returns focus to the trigger.
+    if (applyBtn) {
+      applyBtn.addEventListener('click', function () { closePanel(); btn.focus(); });
+    }
+    // pointerdown fires for both mouse and touch, and before the synthetic
+    // click — so a tap anywhere outside the widget reliably closes the panel
+    // on real phones (plain 'click' can miss or be intercepted on touch).
+    document.addEventListener('pointerdown', function (e) {
+      if (panel.hidden) return;
       if (!wrap.contains(e.target)) closePanel();
     });
     document.addEventListener('keydown', function (e) {
@@ -349,6 +391,24 @@
 
     var BOOKING_API_URL = '';   // ← your endpoint goes here
     var BOOKING_TIMEOUT = 12000; // ms before we give up and tell the customer
+
+    // "Now" in the salon's timezone (IST, +05:30), independent of the visitor's
+    // device clock/timezone, so the date floor and past-time check stay correct
+    // for a customer booking from another zone.
+    function istNow() {
+      return new Date(Date.now() + (330 + new Date().getTimezoneOffset()) * 60000);
+    }
+    function localDateStr() {
+      var d = istNow();
+      return d.getFullYear() + '-' +
+        String(d.getMonth() + 1).padStart(2, '0') + '-' +
+        String(d.getDate()).padStart(2, '0');
+    }
+    function localTimeStr() {
+      var d = istNow();
+      return String(d.getHours()).padStart(2, '0') + ':' +
+        String(d.getMinutes()).padStart(2, '0');
+    }
 
     // 10 local digits -> +91XXXXXXXXXX. Already-prefixed numbers pass through.
     function toE164(raw) {
@@ -421,9 +481,55 @@
       });
     }
 
+    // "2026-08-24" + "14:30" -> "Sun, 24 Aug · 2:30 PM"
+    function formatWhen(dateStr, timeStr) {
+      if (!dateStr) return '—';
+      var parts = dateStr.split('-');
+      var d = new Date(+parts[0], +parts[1] - 1, +parts[2]);
+      var days  = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      var mons  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      var out = days[d.getDay()] + ', ' + d.getDate() + ' ' + mons[d.getMonth()];
+      if (timeStr) {
+        var hm = timeStr.split(':');
+        var h = +hm[0], m = hm[1];
+        var ap = h >= 12 ? 'PM' : 'AM';
+        var h12 = h % 12; if (h12 === 0) h12 = 12;
+        out += ' · ' + h12 + ':' + m + ' ' + ap;
+      }
+      return out;
+    }
+
+    // Confetti burst from behind the stamp. Colours pull from the palette
+    // (gold + green) so it stays on-brand rather than rainbow.
+    function firePoppers() {
+      var host = $('#ticket-poppers');
+      if (!host) return;
+      host.innerHTML = '';
+      if (reduceMotion) return;
+      var colours = ['#C79A24', '#E2C45C', '#365B32', '#8A670F', '#B0D183'];
+      var N = 40;
+      for (var i = 0; i < N; i++) {
+        var s = document.createElement('span');
+        var ang = (Math.PI * 2 * i) / N + (Math.random() * 0.5 - 0.25);
+        var dist = 80 + Math.random() * 90;
+        var size = 5 + Math.random() * 6;
+        s.style.width  = size + 'px';
+        s.style.height = (size * (0.5 + Math.random())) + 'px';
+        s.style.background = colours[i % colours.length];
+        s.style.setProperty('--dx', (Math.cos(ang) * dist).toFixed(1) + 'px');
+        s.style.setProperty('--dy', (Math.sin(ang) * dist).toFixed(1) + 'px');
+        s.style.setProperty('--dr', (Math.random() * 720 - 360).toFixed(0) + 'deg');
+        s.style.animation = 'tkPop ' + (0.7 + Math.random() * 0.5).toFixed(2) +
+          's ease-out ' + (0.6 + Math.random() * 0.15).toFixed(2) + 's both';
+        host.appendChild(s);
+      }
+    }
+
     function showSuccess(data) {
       nameOut.textContent = data.name.split(' ')[0];
       servOut.textContent = data.services;
+      var whenEl = $('#booked-when');
+      if (whenEl) whenEl.textContent = formatWhen(data.date, data.time);
       form.hidden = true;
       card.hidden = false;
       card.setAttribute('tabindex', '-1');
@@ -431,17 +537,61 @@
       // time rather than only on the first booking of the session.
       void card.offsetWidth;
       card.classList.add('is-in');
+      firePoppers();
       card.focus();
     }
 
-    function fail(message, field) {
-      errorEl.textContent = message;
+    function clearErrors() {
       $$('.field', form).forEach(function (f) { f.classList.remove('has-error'); });
+      $$('.field__error', form).forEach(function (s) { s.textContent = ''; });
+      errorEl.textContent = '';
+    }
+
+    // Field-scoped failure: message goes in the slot under `field`, and that
+    // field gets the error outline + focus. With no field it falls back to the
+    // form-level line (used for submit / network failures only).
+    function fail(message, field) {
+      clearErrors();
       if (field) {
-        field.closest('.field').classList.add('has-error');
+        var wrap = field.closest('.field');
+        wrap.classList.add('has-error');
+        var slot = $('.field__error', wrap);
+        if (slot) slot.textContent = message;
         field.focus();
+      } else {
+        errorEl.textContent = message;
       }
     }
+
+    // ── Field constraints & live cleanup ─────────────────────────────
+    (function setupFields() {
+      var phoneEl = $('#f-phone');
+      var dateEl  = $('#f-date');
+
+      // Phone: digits only, hard cap at 10. Runs on every keystroke and on
+      // paste, so a pasted "+91 98765 43210" collapses to "9876543210".
+      if (phoneEl) {
+        phoneEl.addEventListener('input', function () {
+          var cleaned = phoneEl.value.replace(/[^0-9]/g, '').slice(0, 10);
+          if (cleaned !== phoneEl.value) phoneEl.value = cleaned;
+        });
+      }
+
+      // Date floor = today (IST); the native picker greys out past days.
+      if (dateEl) dateEl.min = localDateStr();
+
+      // Clear a field's error the moment the customer starts fixing it.
+      $$('#f-name, #f-phone, #f-date, #f-time', form).forEach(function (el) {
+        el.addEventListener('input', function () {
+          var wrap = el.closest('.field');
+          if (wrap && wrap.classList.contains('has-error')) {
+            wrap.classList.remove('has-error');
+            var slot = $('.field__error', wrap);
+            if (slot) slot.textContent = '';
+          }
+        });
+      });
+    })();
 
     form.addEventListener('submit', function (e) {
       e.preventDefault();
@@ -456,16 +606,35 @@
       if (!name) { fail('Please enter your name.', nameEl); return; }
 
       if (!phone) { fail('Please enter your phone number.', phoneEl); return; }
-      // Indian mobile numbers are exactly 10 digits. Strip spaces, dashes and
-      // an optional +91 / 91 / 0 prefix, then require exactly 10 digits left.
-      var digits = phone.replace(/[^0-9]/g, '').replace(/^(?:91|0)/, '');
-      if (digits.length !== 10) {
+      // The field only accepts digits (see input filter) and caps at 10.
+      // A valid Indian mobile is exactly 10 digits.
+      if (!/^[0-9]{10}$/.test(phone)) {
         fail('Please enter a valid 10-digit phone number.', phoneEl);
         return;
       }
 
       if (!dateEl.value) { fail('Please choose a date.', dateEl); return; }
+
+      // No bookings in the past. Compare date strings (both YYYY-MM-DD, IST).
+      var todayStr = localDateStr();
+      if (dateEl.value < todayStr) {
+        fail('Please choose today or a later date.', dateEl);
+        return;
+      }
+
       if (!timeEl.value) { fail('Please choose a time.', timeEl); return; }
+
+      // Opening hours: 10:00–22:00.
+      if (timeEl.value < '10:00' || timeEl.value > '22:00') {
+        fail('Please pick a time between 10:00 and 22:00.', timeEl);
+        return;
+      }
+
+      // If they picked today, the slot can't already have passed.
+      if (dateEl.value === todayStr && timeEl.value <= localTimeStr()) {
+        fail('That time has already passed today. Please pick a later slot.', timeEl);
+        return;
+      }
 
       // Honeypot: a real person never sees this field, so a value means a bot.
       // Show the normal success state so the bot learns nothing, but send nothing.
@@ -475,7 +644,7 @@
       var bookingFor = ($('input[name="bookingFor"]:checked', form) || {}).value || '';
       var services   = $('#f-services-value').value;
       if (!services) {
-        fail('Please select at least one service.');
+        fail('Please select at least one service.', $('#f-services-btn'));
         return;
       }
 
@@ -742,7 +911,7 @@
       var y = window.scrollY;
       var vh = window.innerHeight;
       if (y >= vh) return;
-      inner.style.transform = 'translateY(' + (y * 0.28) + 'px)';
+      inner.style.transform = 'translateY(calc(24vh + ' + (y * 0.28) + 'px))';
       inner.style.opacity = String(Math.max(0, 1 - y / (vh * 0.75)));
     }
 
@@ -1641,7 +1810,10 @@
         // Slide-out: after the read, the card HOLDS in place for DWELL px
         // (nothing moves), THEN card i+1 begins sliding in over the following
         // viewport. So the cover progress starts at (extra + DWELL).
-        var pOut = clamp((local - extra - DWELL) / vh, 0, 1);
+        // The LAST card has nothing sliding over it, so it must not scale or
+        // dim away at the end — otherwise it visibly shrinks/fades into blank.
+        var isLast = (i === cards.length - 1);
+        var pOut = isLast ? 0 : clamp((local - extra - DWELL) / vh, 0, 1);
 
         card.style.transform =
           'translateX(' + ((1 - pIn) * 102) + '%) scale(' + (1 - 0.07 * pOut) + ')';

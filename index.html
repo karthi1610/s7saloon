@@ -71,7 +71,7 @@
     <div class="hero__slide">
       <div class="img-slot" data-label="Hero photo 3 — storefront by day">
         <picture>
-          <source media="(max-width: 860px)" srcset="images/hero-1-mobile.jpg">
+          <source media="(max-width: 860px)" srcset="images/hero-3-mobile.jpg">
           <img src="images/hero-3.jpg" alt="Studie'o7 Signature Lounge building by day, with the Gravity Sports Centre and 07 Outlets signage" loading="lazy">
         </picture>
       </div>
@@ -88,12 +88,7 @@
   <div class="hero__fade" aria-hidden="true"></div>
 
   <div class="hero__inner" id="hero-inner">
-    <p class="eyebrow eyebrow--wide" data-rv>Signature Salon · Hair, Beauty, Bridal &amp; Luxury Care</p>
-    <h1 class="hero__logo" data-rv data-rv-delay="120">
-      <img src="assets/logo.png" alt="Studie'o7" width="440" height="141">
-    </h1>
-    <p class="hero__lede" data-rv data-rv-delay="240">Where craft meets indulgence. Precision cuts, radiant colour and restorative rituals — in a space designed to slow time down.</p>
-    <div class="hero__cta" data-rv data-rv-delay="360">
+    <div class="hero__cta" data-rv data-rv-delay="120">
       <a class="btn btn--gold btn--glow" href="#book">Book an Appointment</a>
       <a class="btn btn--ghost" href="#pricing">View Pricing</a>
       <a class="btn btn--icon" href="https://www.instagram.com/studieo7hopes/" aria-label="Follow @studieo7hopes on Instagram" target="_blank" rel="noopener">
@@ -393,7 +388,7 @@
     <div class="book__copy" data-rv>
       <p class="eyebrow">Reserve your chair</p>
       <h2 id="book-h">Book an <em>appointment</em></h2>
-      <p class="book__lede">Tell us what you need and when — we'll confirm within the hour on call or WhatsApp. Walk-ins welcome, but chairs go fast on weekends.</p>
+      <p class="book__lede">Tell us what you need and when — book a seat. Walk-ins welcome, but chairs go fast on weekends.</p>
       <ul class="book__perks">
         <li><i aria-hidden="true">✦</i>Complimentary consultation with every booking</li>
         <li><i aria-hidden="true">✦</i>Dedicated sections for men &amp; women</li>
@@ -407,10 +402,12 @@
           <div class="field">
             <label for="f-name">Name</label>
             <input id="f-name" name="name" type="text" autocomplete="name" placeholder="Your name" required>
+            <span class="field__error" id="err-name" role="alert"></span>
           </div>
           <div class="field">
             <label for="f-phone">Phone</label>
-            <input id="f-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+91 ·····" required>
+            <input id="f-phone" name="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="10-digit mobile" maxlength="10" pattern="[0-9]{10}" required>
+            <span class="field__error" id="err-phone" role="alert"></span>
           </div>
           <div class="field field--full">
             <label for="f-for-women">Who's this for?</label>
@@ -436,17 +433,25 @@
                 <span class="msel__btn-text" id="f-services-btn-text">Select services</span>
                 <svg class="msel__chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
               </button>
-              <div class="msel__panel" id="f-services-panel" role="listbox" aria-multiselectable="true" aria-label="Services" hidden></div>
+              <div class="msel__panel" id="f-services-panel" hidden>
+                <div class="msel__list" id="f-services-list" role="listbox" aria-multiselectable="true" aria-label="Services"></div>
+                <div class="msel__bar">
+                  <button type="button" class="msel__apply" id="f-services-apply">Apply</button>
+                </div>
+              </div>
             </div>
             <input type="hidden" name="services" id="f-services-value">
+            <span class="field__error" id="err-services" role="alert"></span>
           </div>
           <div class="field">
             <label for="f-date">Date</label>
             <input id="f-date" name="date" type="date" required>
+            <span class="field__error" id="err-date" role="alert"></span>
           </div>
           <div class="field">
             <label for="f-time">Time</label>
-            <input id="f-time" name="time" type="time" required>
+            <input id="f-time" name="time" type="time" min="10:00" max="22:00" step="60" required>
+            <span class="field__error" id="err-time" role="alert"></span>
           </div>
           <div class="field field--full">
             <label for="f-notes">Notes (optional)</label>
@@ -464,15 +469,41 @@
       </form>
 
       <div class="booked" id="booked" role="status" hidden>
-        <div class="booked__tick" aria-hidden="true">
-          <svg viewBox="0 0 66 66" fill="none" stroke-linecap="round" stroke-linejoin="round">
-            <circle class="booked__ring" cx="33" cy="33" r="32" stroke="var(--gold)" stroke-width="1"/>
-            <path class="booked__check" d="M20 34.5 L29 43 L46 24" stroke="var(--gold-2)" stroke-width="2.4"/>
-          </svg>
+        <div class="ticket" aria-hidden="false">
+          <div class="ticket__top">
+            <div class="ticket__brand">
+              <span class="ticket__dot"></span>
+              <span>Studie'o7 Hopes</span>
+            </div>
+            <p class="ticket__title">Request received, <span id="booked-name"></span></p>
+            <p class="ticket__copy">We'll confirm your <span id="booked-service"></span> slot shortly on call or WhatsApp. See you at the studio.</p>
+          </div>
+
+          <div class="ticket__tear" aria-hidden="true">
+            <span class="ticket__notch ticket__notch--l"></span>
+            <span class="ticket__notch ticket__notch--r"></span>
+          </div>
+
+          <div class="ticket__bottom">
+            <div class="ticket__when">
+              <span class="ticket__label">Appointment</span>
+              <span class="ticket__value" id="booked-when">—</span>
+            </div>
+            <button class="ticket__replay" type="button" id="book-again">Book another appointment</button>
+          </div>
+
+          <div class="ticket__stamp" aria-hidden="true">
+            <span class="ticket__shock"></span>
+            <div class="ticket__seal">
+              <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+                <path d="M13 27 L22.4 36 L39 17.5" stroke="currentColor" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span class="ticket__seal-text">CONFIRMED</span>
+            </div>
+          </div>
+
+          <div class="ticket__poppers" id="ticket-poppers" aria-hidden="true"></div>
         </div>
-        <p class="booked__title">Request received, <span id="booked-name"></span></p>
-        <p class="booked__copy">We'll confirm your <span id="booked-service"></span> slot shortly on call or WhatsApp. See you at the studio.</p>
-        <button class="btn btn--ghost" type="button" id="book-again">Book another</button>
       </div>
     </div>
   </div>
