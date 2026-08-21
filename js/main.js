@@ -880,14 +880,18 @@
         var posts = (data && data.posts) || (Array.isArray(data) ? data : []);
         if (!posts.length) return;
 
-        tiles.forEach(function (tile, i) {
-          var p = posts[i];
+        // Which tiles get live posts, by their 1-based position in the wall.
+        // The feed returns 6 posts; these land on the middle two columns plus
+        // the top of the last column, so the live content sits centre-right
+        // rather than clustering on the left. Every other tile keeps its
+        // existing curated image and permalink baked into the HTML.
+        // Tiles (1-based): 5, 6, 9, 10, 12, 13  →  0-based indices below.
+        var LIVE_TILES = [4, 5, 8, 9, 11, 12];
 
-          // No live post for this tile — the feed returns fewer posts (6) than
-          // the wall has slots (14). Leave the tile exactly as-is: it keeps its
-          // existing curated image and permalink baked into the HTML, so the
-          // wall stays visually full with no gaps.
-          if (!p) return;
+        LIVE_TILES.forEach(function (tileIndex, postIndex) {
+          var tile = tiles[tileIndex];
+          var p = posts[postIndex];
+          if (!tile || !p) return;
 
           // Always use the Behold-cached still (sizes.*). These are stable
           // JPGs — even for VIDEO/reel posts, where sizes holds the thumbnail
