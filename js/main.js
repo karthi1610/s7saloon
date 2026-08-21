@@ -868,7 +868,7 @@
      changing its href and img src in the markup below.
      ───────────────────────────────────────────────────────────────── */
   (function () {
-    var IG_FEED_URL = ''; // ← blank = use the curated tiles in the HTML
+    var IG_FEED_URL = 'https://feeds.behold.so/Q4r6C0Yztql7o4tpx2MC'; // blank = use the curated tiles in the HTML
 
     if (!IG_FEED_URL) return;
     var tiles = $$('.ig-wall__tile');
@@ -881,12 +881,23 @@
         if (!posts.length) return;
 
         tiles.forEach(function (tile, i) {
-          var p = posts[i % posts.length];
-          // Prefer a mid-size still; videos/reels expose thumbnailUrl.
+          var p = posts[i];
+
+          // No live post for this tile — the feed returns fewer posts (6) than
+          // the wall has slots (14). Leave the tile exactly as-is: it keeps its
+          // existing curated image and permalink baked into the HTML, so the
+          // wall stays visually full with no gaps.
+          if (!p) return;
+
+          // Always use the Behold-cached still (sizes.*). These are stable
+          // JPGs — even for VIDEO/reel posts, where sizes holds the thumbnail
+          // frame. thumbnailUrl/mediaUrl are raw cdninstagram URLs that expire,
+          // so they're last-resort fallbacks only.
           var src =
             (p.sizes && p.sizes.medium && p.sizes.medium.mediaUrl) ||
+            (p.sizes && p.sizes.large && p.sizes.large.mediaUrl) ||
+            (p.sizes && p.sizes.small && p.sizes.small.mediaUrl) ||
             p.thumbnailUrl || p.mediaUrl;
-          if (p.mediaType === 'VIDEO' && p.thumbnailUrl) src = p.thumbnailUrl;
 
           var img = $('img', tile);
           if (img && src) img.src = src;
