@@ -870,9 +870,55 @@
   (function () {
     var IG_FEED_URL = 'https://feeds.behold.so/Q4r6C0Yztql7o4tpx2MC'; // blank = use the curated tiles in the HTML
 
+    // Which tiles get live posts, by their 1-based position in the wall.
+    // The feed returns 6 posts; these land on the middle two columns plus
+    // the top of the last column, so the live content sits centre-right
+    // rather than clustering on the left. Every other tile keeps its
+    // existing curated image and permalink baked into the HTML.
+    // Tiles (1-based): 5, 6, 9, 10, 12, 13  →  0-based indices below.
+    var LIVE_TILES = [4, 5, 8, 9, 11, 12];
+
+    // Apply the fetched posts to one wall element's tiles. Called for the
+    // real desktop wall when the feed resolves, AND for the mobile clone each
+    // time it's built (see mergeInstagram) — the mobile card-stack deep-clones
+    // the wall, so without re-applying here the clone would only ever show the
+    // curated fallback images. Safe to call repeatedly and on either root.
+    function fillWall(root, posts) {
+      if (!root || !posts || !posts.length) return;
+      var tiles = root.querySelectorAll('.ig-wall__tile');
+      if (!tiles.length) return;
+
+      LIVE_TILES.forEach(function (tileIndex, postIndex) {
+        var tile = tiles[tileIndex];
+        var p = posts[postIndex];
+        if (!tile || !p) return;
+
+        // Always use the Behold-cached still (sizes.*). These are stable
+        // JPGs — even for VIDEO/reel posts, where sizes holds the thumbnail
+        // frame. thumbnailUrl/mediaUrl are raw cdninstagram URLs that expire,
+        // so they're last-resort fallbacks only.
+        var src =
+          (p.sizes && p.sizes.medium && p.sizes.medium.mediaUrl) ||
+          (p.sizes && p.sizes.large && p.sizes.large.mediaUrl) ||
+          (p.sizes && p.sizes.small && p.sizes.small.mediaUrl) ||
+          p.thumbnailUrl || p.mediaUrl;
+
+        var img = tile.querySelector('img');
+        if (img && src) img.src = src;
+        if (p.permalink) tile.href = p.permalink;
+        if (p.prunedCaption || p.caption) {
+          tile.setAttribute('aria-label', 'View on Instagram: ' + String(p.prunedCaption || p.caption).slice(0, 60));
+        }
+      });
+    }
+
+    // Expose the fill helper + the posts so the mobile card-stack clone can
+    // reuse them. IG_POSTS may still be null when the clone is built (the feed
+    // is async) — mergeInstagram calls fillWall itself once posts arrive.
+    window.__igFillWall = fillWall;
+    window.__igPosts = null;
+
     if (!IG_FEED_URL) return;
-    var tiles = $$('.ig-wall__tile');
-    if (!tiles.length) return;
 
     fetch(IG_FEED_URL)
       .then(function (r) { return r.json(); })
@@ -880,36 +926,13 @@
         var posts = (data && data.posts) || (Array.isArray(data) ? data : []);
         if (!posts.length) return;
 
-        // Which tiles get live posts, by their 1-based position in the wall.
-        // The feed returns 6 posts; these land on the middle two columns plus
-        // the top of the last column, so the live content sits centre-right
-        // rather than clustering on the left. Every other tile keeps its
-        // existing curated image and permalink baked into the HTML.
-        // Tiles (1-based): 5, 6, 9, 10, 12, 13  →  0-based indices below.
-        var LIVE_TILES = [4, 5, 8, 9, 11, 12];
+        window.__igPosts = posts;
 
-        LIVE_TILES.forEach(function (tileIndex, postIndex) {
-          var tile = tiles[tileIndex];
-          var p = posts[postIndex];
-          if (!tile || !p) return;
-
-          // Always use the Behold-cached still (sizes.*). These are stable
-          // JPGs — even for VIDEO/reel posts, where sizes holds the thumbnail
-          // frame. thumbnailUrl/mediaUrl are raw cdninstagram URLs that expire,
-          // so they're last-resort fallbacks only.
-          var src =
-            (p.sizes && p.sizes.medium && p.sizes.medium.mediaUrl) ||
-            (p.sizes && p.sizes.large && p.sizes.large.mediaUrl) ||
-            (p.sizes && p.sizes.small && p.sizes.small.mediaUrl) ||
-            p.thumbnailUrl || p.mediaUrl;
-
-          var img = $('img', tile);
-          if (img && src) img.src = src;
-          if (p.permalink) tile.href = p.permalink;
-          if (p.prunedCaption || p.caption) {
-            tile.setAttribute('aria-label', 'View on Instagram: ' + String(p.prunedCaption || p.caption).slice(0, 60));
-          }
-        });
+        // Fill the real desktop wall now.
+        fillWall(document.querySelector('.ig-wall'), posts);
+        // And any mobile clone that was already built before the feed arrived.
+        var clone = document.querySelector('.ig-wall--incard');
+        if (clone) fillWall(clone, posts);
       })
       .catch(function () { /* feed unreachable — local images stay */ });
   })();
@@ -1560,6 +1583,15 @@
       var inner = sec.querySelector(':scope > .card__inner') || sec;
       inner.appendChild(clone);
       igNode = clone;
+
+      // The clone was deep-copied from the desktop wall, so it carries whatever
+      // that wall had at clone-time — the curated images if the feed hadn't
+      // resolved yet. Re-apply the live posts to the clone directly. If the
+      // feed is still in flight (__igPosts null), the fetch handler fills the
+      // clone when it lands via the .ig-wall--incard lookup.
+      if (window.__igFillWall && window.__igPosts) {
+        window.__igFillWall(clone, window.__igPosts);
+      }
     }
 
     function unmergeInstagram() {
